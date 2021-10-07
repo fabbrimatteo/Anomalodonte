@@ -11,8 +11,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from conf import Conf
-from dataset.dummy_ds import DummyDS
-from models.autoencoder import DDAutoencoder
+from dataset.spal_fake_ds import SpalDS
+from models.autoencoder import SimpleAutoencoder
 from models.dd_loss import DDLoss
 from progress_bar import ProgressBar
 
@@ -25,23 +25,21 @@ class Trainer(object):
         self.cnf = cnf
 
         # init train loader
-        training_set = DummyDS(cnf, mode='train')
-        self.avg_img = training_set.avg_img
-        self.avg_img = self.avg_img.to(cnf.device)
+        training_set = SpalDS(cnf, mode='train')
         self.train_loader = DataLoader(
             dataset=training_set, batch_size=cnf.batch_size, num_workers=cnf.n_workers,
             worker_init_fn=training_set.wif, shuffle=True, pin_memory=True,
         )
 
         # init test loader
-        test_set = DummyDS(cnf, mode='test')
+        test_set = SpalDS(cnf, mode='test')
         self.test_loader = DataLoader(
             dataset=test_set, batch_size=cnf.batch_size, num_workers=1,
             worker_init_fn=test_set.wif_test, shuffle=False, pin_memory=False,
         )
 
         # init model
-        self.model = DDAutoencoder(code_channels=cnf.code_channels, avg_img=self.avg_img)
+        self.model = SimpleAutoencoder(code_channels=cnf.code_channels)
         self.model = self.model.to(cnf.device)
 
         # init optimizer
@@ -154,9 +152,10 @@ class Trainer(object):
             # draw results for this step in a 2 rows grid:
             # row #1: predicted_output (y_pred)
             # row #2: target (y_true)
-            grid = torch.cat([y_pred, y_true], dim=0)
-            grid = tv.utils.make_grid(grid, normalize=True, value_range=(0, 1), nrow=x.shape[0])
-            self.sw.add_image(tag=f'results_{step}', img_tensor=grid, global_step=self.epoch)
+            if step % 16 == 0:
+                grid = torch.cat([y_pred, y_true], dim=0)
+                grid = tv.utils.make_grid(grid, normalize=True, value_range=(0, 1), nrow=x.shape[0])
+                self.sw.add_image(tag=f'results_{step}', img_tensor=grid, global_step=self.epoch)
 
         # save best model
         mean_test_loss = np.mean(test_losses)

@@ -1,22 +1,14 @@
 import torch
-from torchvision import transforms
 
 import utils
 from conf import Conf
-from models.autoencoder import DDAutoencoder
-from path import Path
+from models.autoencoder import SimpleAutoencoder
+
 
 def generate_prototypes(exp_name):
     cnf = Conf(exp_name=exp_name)
 
-    avg_img_path = cnf.ds_path / 'average_train_img.png'
-    if avg_img_path.exists():
-        avg_img = utils.imread(avg_img_path)
-        avg_img = transforms.ToTensor()(avg_img)
-    else:
-        avg_img = None
-
-    model = DDAutoencoder(code_channels=cnf.code_channels, avg_img=avg_img)
+    model = SimpleAutoencoder(code_channels=cnf.code_channels)
     model = model.to(cnf.device)
     model.requires_grad(False)
     model.load_w(cnf.exp_log_path / 'best.pth')

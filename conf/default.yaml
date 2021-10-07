@@ -1,8 +1,8 @@
 LR: 0.0001
-EPOCHS: 16
+EPOCHS: 256
 DEVICE: cuda
 N_WORKERS: 4
 BATCH_SIZE: 32
 CODE_CHANNELS: 3
-MAX_PATIENCE: 8
-DS_PATH: /home/matteo/Desktop/to_check/Anomalo/dataset/transistors
+MAX_PATIENCE: 16
+DS_PATH: /home/matteo/PycharmProjects/Anomalodonte/dataset/spal_fake
