@@ -73,6 +73,7 @@ class SimpleAutoencoder(BaseModel):
     def encode(self, x, code_noise=None):
         # type: (torch.Tensor, float) -> torch.Tensor
         code = self.encoder(x)
+
         if self.training and code_noise is not None:
             code = code + code_noise * self.normal.sample(code.shape)
 
