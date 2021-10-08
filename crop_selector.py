@@ -20,7 +20,7 @@ class CropSelector(object):
         self.app_scale = app_scale
 
 
-    def click_handler(self, event, x, y, *args):
+    def click_handler(self, event, x, y, *_):
 
         if event == cv2.EVENT_LBUTTONDOWN and self.state == 'SLEEP':
             self.pt1 = (x, y)
