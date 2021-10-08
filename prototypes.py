@@ -4,22 +4,18 @@ import torchvision
 
 from conf import Conf
 from models.autoencoder import SimpleAutoencoder
-from pre_processing import CropThenResize
+from pre_processing import PreProcessingTr
 
 
 def generate_prototypes(exp_name):
     cnf = Conf(exp_name=exp_name)
 
-    model = SimpleAutoencoder(code_channels=cnf.code_channels)
-    model = model.to(cnf.device)
-    model.requires_grad(False)
-    model.load_w(cnf.exp_log_path / 'best.pth')
-    model.eval()
+    model = SimpleAutoencoder.init_from_pth(cnf.exp_log_path / 'best.pth')
 
-    trs = torchvision.transforms.Compose([
-        torchvision.transforms.ToTensor(),
-        CropThenResize(resized_h=628, resized_w=751, crop_x_min=147, crop_y_min=213, crop_side=256),
-    ])
+    trs = PreProcessingTr(
+        resized_h=256, resized_w=256,
+        crop_x_min=812, crop_y_min=660, crop_side=315
+    )
 
     out_dir = cnf.exp_log_path / 'prototypes'
     out_dir.makedirs_p()
@@ -40,4 +36,4 @@ def load_prototypes(ds_path):
 
 
 if __name__ == '__main__':
-    generate_prototypes(exp_name='sandramilo')
+    generate_prototypes(exp_name='small')

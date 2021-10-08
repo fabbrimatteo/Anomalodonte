@@ -7,7 +7,7 @@ from skimage import filters
 import random
 from conf import Conf
 from models.autoencoder import SimpleAutoencoder
-from pre_processing import CropThenResize
+from pre_processing import PreProcessingTr
 from prototypes import load_prototypes
 
 
@@ -56,15 +56,10 @@ def results(exp_name):
     cnf = Conf(exp_name=exp_name)
 
     model = SimpleAutoencoder.init_from_pth(pth_file_path=cnf.exp_log_path / 'best.pth')
-
-    mask = cv2.imread('mask.png', 0)
-    mask[mask < 128] = 0
-    mask[mask >= 128] = 1
-
-    trs = torchvision.transforms.Compose([
-        torchvision.transforms.ToTensor(),
-        CropThenResize(resized_h=628, resized_w=751, crop_x_min=147, crop_y_min=213, crop_side=256),
-    ])
+    trs = PreProcessingTr(
+        resized_h=256, resized_w=256,
+        crop_x_min=812, crop_y_min=660, crop_side=315
+    )
 
     mse = torch.nn.MSELoss()
     p_list = load_prototypes(ds_path=cnf.exp_log_path)
@@ -81,18 +76,22 @@ def results(exp_name):
         x = trs(img).unsqueeze(0).to(cnf.device)
         x_true = x[0].clone()
         code = model.encode(x)[0]
+        x_pred_real = model.forward(x)[0]
 
         all_diffs = [mse(p, code).item() for p in p_list]
         selected_prototype = p_list[np.argmin(all_diffs)]
 
         x_true = x_true.cpu().numpy().transpose((1, 2, 0))
         x_pred = model.decode(selected_prototype.unsqueeze(0).to(cnf.device)).cpu().numpy()[0].transpose((1, 2, 0))
+        x_pred_real = x_pred_real.cpu().numpy().transpose((1, 2, 0))
+        fancy_map = get_anomaly_map(x_pred, x_true)
 
-        final_map = get_anomaly_map(x_pred, x_true)
-        print(f.basename())
+        mse_map1 = ((x_pred_real - x_true) ** 2).mean(-1)
+        mse_map2 = ((cv2.resize(x_pred_real, (128, 128)) - cv2.resize(x_true, (128, 128))) ** 2).mean(-1)
+        mse_map3 = ((cv2.resize(x_pred_real, (64, 64)) - cv2.resize(x_true, (64, 64))) ** 2).mean(-1)
+        mse_map = (mse_map1 + cv2.resize(mse_map2, (256, 256)) + cv2.resize(mse_map3, (256, 256)))
 
-        # anomaly_score = final_map.mean() * 100
-        anomaly_score = ((final_map * mask).sum() / (mask == 1).sum()) * 100
+        anomaly_score = fancy_map.mean() * 100
 
         label_true = 0 if 'good' in f.basename() else 1
         if label_true == 0:
@@ -106,14 +105,26 @@ def results(exp_name):
             f'G: {np.mean(goods):.2f} (+- {np.std(goods):.2f})  |  '
             f'B: {np.mean(bads):.2f} (+- {np.std(bads):.2f}) ')
 
-        fig, axes = plt.subplots(1, 3, figsize=(80, 60), dpi=100)
-        axes[0].imshow(x_true[:, :, ::-1])
-        axes[0].set_title(f'{f.basename()}')
-        axes[1].imshow(x_pred[:, :, ::-1])
-        axes[2].imshow(final_map, cmap='jet', vmin=0, vmax=1)
-        axes[2].set_title(f'{final_map.mean() * 100:.2f}')
+        fig, axes = plt.subplots(2, 3, figsize=(80, 60), dpi=100)
+
+        axes[0, 0].imshow(x_true[:, :, ::-1])
+        axes[0, 0].set_title(f'{f.basename()}')
+
+        axes[0, 1].imshow(x_pred[:, :, ::-1])
+
+        axes[0, 2].imshow(fancy_map, cmap='jet', vmin=0, vmax=1)
+        axes[0, 2].set_title(f'{fancy_map.mean() * 100:.2f}')
+
+        axes[1, 0].imshow(x_true[:, :, ::-1])
+        axes[1, 0].set_title(f'{f.basename()}')
+
+        axes[1, 1].imshow(x_pred_real[:, :, ::-1])
+
+        axes[1, 2].imshow(mse_map, cmap='jet', vmin=0, vmax=1)
+        axes[1, 2].set_title(f'{mse_map.mean() * 100:.2f}')
 
         for ax in axes:
+            continue
             ax.set_xticks([])
             ax.set_yticks([])
 
@@ -124,4 +135,4 @@ def results(exp_name):
 
 
 if __name__ == '__main__':
-    results(exp_name='sandramilo')
+    results(exp_name='small')
