@@ -9,6 +9,11 @@ import torchvision
 ArrayOrTensor = Union[np.ndarray, torch.Tensor]
 
 
+def bgr2rgb(img):
+    # type: (ArrayOrTensor) -> ArrayOrTensor
+    return img[[2, 1, 0]]
+
+
 class ReseizeThenCrop(object):
 
     def __init__(self, resized_h, resized_w, crop_x_min, crop_y_min, crop_side):
@@ -44,27 +49,30 @@ class ReseizeThenCrop(object):
         return self.apply(img)
 
 
-def apply_pre_processing(img):
-    # type: (ArrayOrTensor) -> ArrayOrTensor
+class PreProcessingTr(object):
 
-    h, w = 628, 751
-    start_x, start_y = 147, 213
+    def __init__(self, resized_h, resized_w, crop_x_min, crop_y_min, crop_side):
+        # type: (int, int, int, int, int) -> None
+        self.trs = torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(), bgr2rgb,
+            ReseizeThenCrop(resized_h, resized_w, crop_x_min, crop_y_min, crop_side)
+        ])
 
-    if type(img) is np.ndarray:
-        img = cv2.resize(img, (w, h))
-        img = img[start_y:start_y + 256, start_x:start_x + 256, :]
-    else:
-        img = torchvision.transforms.Resize((h, w))(img)
-        img = img[:, start_y:start_y + 256, start_x:start_x + 256]
 
-    return img
+    def apply(self, img):
+        # type: (np.ndarray) -> torch.Tensor
+        return self.trs(img)
+
+
+    def __call__(self, img):
+        # type: (np.ndarray) -> torch.Tensor
+        return self.apply(img)
 
 
 def debug():
-    img = cv2.imread('/home/matteo/PycharmProjects/Anomalodonte/dataset/spal_fake/train/good_0105.png')
-    img = ReseizeThenCrop(resized_h=628, resized_w=751, crop_x_min=147, crop_y_min=213, crop_side=256)(img)
-    cv2.imshow('', img)
-    cv2.waitKey()
+    img = cv2.imread('/home/fabio/output.jpg')
+    img = PreProcessingTr(resized_h=628, resized_w=751, crop_x_min=147, crop_y_min=213, crop_side=256)(img)
+    print(type(img), img.shape)
 
 
 if __name__ == '__main__':
