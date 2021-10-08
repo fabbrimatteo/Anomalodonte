@@ -39,7 +39,7 @@ class Trainer(object):
         )
 
         # init model
-        self.model = SimpleAutoencoder(code_channels=cnf.code_channels)
+        self.model = SimpleAutoencoder(code_channels=cnf.code_channels, code_h=cnf.code_h, code_w=cnf.code_w)
         self.model = self.model.to(cnf.device)
 
         # init optimizer
