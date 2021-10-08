@@ -96,6 +96,7 @@ class Conf(object):
         self.batch_size = y.get('BATCH_SIZE', 8)  # type: int
         self.max_patience = y.get('MAX_PATIENCE', 8)  # type: int
         self.code_channels = y.get('CODE_CHANNELS', 4)  # type: int
+        self.code_noise = y.get('CODE_NOISE', 0.25)  # type: float
         self.ds_path = y.get('DS_PATH', None)  # type: str
 
         self.ds_path = Path(self.ds_path)

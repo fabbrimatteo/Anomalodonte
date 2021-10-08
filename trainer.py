@@ -110,7 +110,7 @@ class Trainer(object):
             x, y_true = sample
             x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
 
-            y_pred = self.model.forward(x)
+            y_pred = self.model.forward(x, code_noise=self.cnf.code_noise)
             loss = self.loss_fn(y_pred, y_true)
             loss.backward()
             train_losses.append(loss.item())

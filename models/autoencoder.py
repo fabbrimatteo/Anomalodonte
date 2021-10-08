@@ -1,11 +1,11 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from torchvision import transforms
 
 from models.base_model import BaseModel
 from models.residual import ResidualStack
-import numpy as np
-
+from typing import Union
 
 TConv2D = nn.ConvTranspose2d  # shorcut
 
@@ -63,11 +63,11 @@ class SimpleAutoencoder(BaseModel):
         ])
 
 
-    def encode(self, x):
-        # type: (torch.Tensor) -> torch.Tensor
+    def encode(self, x, code_noise=None):
+        # type: (torch.Tensor, float) -> torch.Tensor
         code = self.encoder(x)
-        if self.training:
-            code = code + 0.25 * self.normal.sample(code.shape)
+        if self.training and code_noise is not None:
+            code = code + code_noise * self.normal.sample(code.shape)
         return code
 
 
@@ -77,15 +77,15 @@ class SimpleAutoencoder(BaseModel):
         return y
 
 
-    def forward(self, x):
-        # type: (torch.Tensor) -> torch.Tensor
-        code = self.encode(x)
+    def forward(self, x, code_noise=None):
+        # type: (torch.Tensor, float) -> torch.Tensor
+        code = self.encode(x, code_noise=code_noise)
         x = self.decode(code)
         return x
 
 
-    def to(self, *args, **kwargs):
-        device = args[0]
+    def to(self, device):
+        # type: (Union[str, torch.device]) -> SimpleAutoencoder
         super(SimpleAutoencoder, self).to(device)
         self.normal.loc = self.normal.loc.to(device)
         self.normal.scale = self.normal.scale.to(device)
