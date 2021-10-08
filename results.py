@@ -8,7 +8,7 @@ from torchvision import transforms
 
 import utils
 from conf import Conf
-from models.autoencoder import DDAutoencoder
+from models.autoencoder import SimpleAutoencoder
 from prototypes import load_prototypes
 
 
@@ -63,7 +63,7 @@ def results(exp_name, avg_map=None):
     else:
         avg_img = None
 
-    model = DDAutoencoder(code_channels=cnf.code_channels, avg_img=avg_img)
+    model = SimpleAutoencoder(code_channels=cnf.code_channels, avg_img=avg_img)
     model = model.to(cnf.device)
     model.requires_grad(False)
     model.load_w(cnf.exp_log_path / 'best.pth')

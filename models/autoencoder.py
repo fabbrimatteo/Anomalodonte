@@ -7,6 +7,7 @@ from models.base_model import BaseModel
 from models.residual import ResidualStack
 from typing import Union
 
+
 TConv2D = nn.ConvTranspose2d  # shorcut
 
 
@@ -141,6 +142,26 @@ class SimpleAutoencoder(BaseModel):
         else:
             __state = torch.load(path)
         self.load_state_dict(__state['state_dict'])
+
+
+    @classmethod
+    def init_from_pth(cls, pth_file_path, device='cpu'):
+        # type: (str, Union[str, torch.device]) -> SimpleAutoencoder
+        if not torch.cuda.is_available():
+            pth_dict = torch.load(pth_file_path, map_location='cpu')
+        else:
+            pth_dict = torch.load(pth_file_path)
+
+        autoencoder = cls(
+            mid_channels=pth_dict['mid_channels'],
+            n_res_layers=pth_dict['n_res_layers'],
+            code_channels=pth_dict['code_channels']
+        )
+        autoencoder.load_state_dict(pth_dict['state_dict'])
+        autoencoder.requires_grad(False)
+        autoencoder.eval()
+
+        return autoencoder.to(device)
 
 
 # ---------
