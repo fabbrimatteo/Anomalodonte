@@ -8,11 +8,10 @@ from typing import Tuple
 import cv2
 import numpy as np
 import torch
-import torchvision
 from torch.utils.data import Dataset
 
 from conf import Conf
-from pre_processing import ReseizeThenCrop
+from pre_processing import PreProcessingTr
 
 
 class SpalDS(Dataset):
@@ -36,10 +35,11 @@ class SpalDS(Dataset):
         self.imgs = []
         self.avg_img = None
 
-        self.trs = torchvision.transforms.Compose([
-            torchvision.transforms.ToTensor(),
-            ReseizeThenCrop(resized_h=628, resized_w=751, crop_x_min=147, crop_y_min=213, crop_side=256),
-        ])
+        # pre processing traqnsformations
+        self.trs = PreProcessingTr(
+            resized_h=628, resized_w=751,
+            crop_x_min=147, crop_y_min=213, crop_side=256
+        )
 
         t0 = time.time()
         print(f'$> loading images into memory: please wait...')
@@ -61,8 +61,7 @@ class SpalDS(Dataset):
     def __getitem__(self, i):
         # type: (int) -> Tuple[torch.Tensor, torch.Tensor]
         x = self.imgs[i]
-        y = x
-        return x, y
+        return x, x
 
 
     @staticmethod

@@ -1,8 +1,10 @@
+import cv2
 import torch
+import torchvision
 
-import utils
 from conf import Conf
 from models.autoencoder import SimpleAutoencoder
+from pre_processing import ReseizeThenCrop
 
 
 def generate_prototypes(exp_name):
@@ -14,15 +16,21 @@ def generate_prototypes(exp_name):
     model.load_w(cnf.exp_log_path / 'best.pth')
     model.eval()
 
+    trs = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor(),
+        ReseizeThenCrop(resized_h=628, resized_w=751, crop_x_min=147, crop_y_min=213, crop_side=256),
+    ])
+
     out_dir = cnf.exp_log_path / 'prototypes'
     out_dir.makedirs_p()
-    for f in (cnf.ds_path / 'train').files('*.png'):
-        img = utils.imread(f)
-        code = model.get_code(rgb_img=img)
+    for f in (cnf.ds_path / 'train').files():
+        img = cv2.imread(f)
+        x = trs(img).unsqueeze(0).to(cnf.device)
+        code = model.encode(x)
 
         print(f'$> generating code for image `{f}`')
         out_path = out_dir / f.basename().replace('.png', '.prot')
-        torch.save(code, out_path)
+        torch.save(code[0], out_path)
 
 
 def load_prototypes(ds_path):
@@ -32,4 +40,4 @@ def load_prototypes(ds_path):
 
 
 if __name__ == '__main__':
-    generate_prototypes(exp_name='default')
+    generate_prototypes(exp_name='sandramilo')

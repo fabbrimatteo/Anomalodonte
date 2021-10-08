@@ -1,14 +1,13 @@
 import cv2
 import numpy as np
 import torch
+import torchvision
 from matplotlib import pyplot as plt
-from path import Path
 from skimage import filters
-from torchvision import transforms
-
-import utils
+import random
 from conf import Conf
 from models.autoencoder import SimpleAutoencoder
+from pre_processing import ReseizeThenCrop
 from prototypes import load_prototypes
 
 
@@ -53,49 +52,65 @@ def get_anomaly_map(img_pred, img_true):
     return 0.5 * l1_map + 0.5 * ssim_map
 
 
-def results(exp_name, avg_map=None):
+def results(exp_name):
     cnf = Conf(exp_name=exp_name)
 
-    avg_img_path = cnf.ds_path / 'average_train_img.png'
-    if avg_img_path.exists():
-        avg_img = utils.imread(avg_img_path)
-        avg_img = transforms.ToTensor()(avg_img)
-    else:
-        avg_img = None
+    model = SimpleAutoencoder.init_from_pth(pth_file_path=cnf.exp_log_path / 'best.pth')
 
-    model = SimpleAutoencoder(code_channels=cnf.code_channels, avg_img=avg_img)
-    model = model.to(cnf.device)
-    model.requires_grad(False)
-    model.load_w(cnf.exp_log_path / 'best.pth')
-    model.eval()
+    mask = cv2.imread('mask.png', 0)
+    mask[mask < 128] = 0
+    mask[mask >= 128] = 1
+
+    trs = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor(),
+        ReseizeThenCrop(resized_h=628, resized_w=751, crop_x_min=147, crop_y_min=213, crop_side=256),
+    ])
 
     mse = torch.nn.MSELoss()
     p_list = load_prototypes(ds_path=cnf.exp_log_path)
 
-    avg_final_map = 0
-    n_imgs = len(Path('dataset/transistors/test').files('*.png'))
-    for f in Path('dataset/transistors/test').files('*.png'):
-        img = utils.imread(f)
-        code = model.get_code(rgb_img=img)
+    flist = list((cnf.ds_path / 'test').files())
+    random.shuffle(flist)
+
+    score = 0
+
+    goods = []
+    bads = []
+    for i, f in enumerate(flist):
+        img = cv2.imread(f)
+        x = trs(img).unsqueeze(0).to(cnf.device)
+        x_true = x[0].clone()
+        code = model.encode(x)[0]
 
         all_diffs = [mse(p, code).item() for p in p_list]
         selected_prototype = p_list[np.argmin(all_diffs)]
 
-        x_true = model.pre_processing_tr(img).cpu().numpy().transpose((1, 2, 0))
+        x_true = x_true.cpu().numpy().transpose((1, 2, 0))
         x_pred = model.decode(selected_prototype.unsqueeze(0).to(cnf.device)).cpu().numpy()[0].transpose((1, 2, 0))
 
         final_map = get_anomaly_map(x_pred, x_true)
         print(f.basename())
-        if avg_map is not None:
-            final_map = np.clip(final_map - avg_map, 0, 1)
 
-        avg_final_map = (1 / n_imgs) * final_map + avg_final_map
+        # anomaly_score = final_map.mean() * 100
+        anomaly_score = ((final_map * mask).sum() / (mask == 1).sum()) * 100
 
-        fig, axes = plt.subplots(1, 3)
-        x_true = filters.gaussian(x_true, sigma=1.2, multichannel=True)
-        axes[0].imshow(x_true)
-        axes[1].imshow(x_pred)
-        axes[2].imshow(final_map, cmap='inferno', vmin=0, vmax=1)
+        label_true = 0 if 'good' in f.basename() else 1
+        if label_true == 0:
+            goods.append(anomaly_score)
+        else:
+            bads.append(anomaly_score)
+        label_pred = 0 if anomaly_score < 7.5 else 1
+        score += int(label_true == label_pred)
+
+        print(
+            f'G: {np.mean(goods):.2f} (+- {np.std(goods):.2f})  |  '
+            f'B: {np.mean(bads):.2f} (+- {np.std(bads):.2f}) ')
+
+        fig, axes = plt.subplots(1, 3, figsize=(80, 60), dpi=100)
+        axes[0].imshow(x_true[:, :, ::-1])
+        axes[0].set_title(f'{f.basename()}')
+        axes[1].imshow(x_pred[:, :, ::-1])
+        axes[2].imshow(final_map, cmap='jet', vmin=0, vmax=1)
         axes[2].set_title(f'{final_map.mean() * 100:.2f}')
 
         for ax in axes:
@@ -105,9 +120,8 @@ def results(exp_name, avg_map=None):
         print()
         plt.show()
 
-    return avg_final_map
+    return 0
 
 
 if __name__ == '__main__':
-    f = results(exp_name='default')
-    results(exp_name='default', avg_map=f)
+    results(exp_name='sandramilo')

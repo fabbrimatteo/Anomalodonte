@@ -145,8 +145,8 @@ class SimpleAutoencoder(BaseModel):
 
 
     @classmethod
-    def init_from_pth(cls, pth_file_path, device='cpu'):
-        # type: (str, Union[str, torch.device]) -> SimpleAutoencoder
+    def init_from_pth(cls, pth_file_path, device='cuda', mode='eval'):
+        # type: (str, Union[str, torch.device], str) -> SimpleAutoencoder
         if not torch.cuda.is_available():
             pth_dict = torch.load(pth_file_path, map_location='cpu')
         else:
@@ -158,8 +158,10 @@ class SimpleAutoencoder(BaseModel):
             code_channels=pth_dict['code_channels']
         )
         autoencoder.load_state_dict(pth_dict['state_dict'])
-        autoencoder.requires_grad(False)
-        autoencoder.eval()
+
+        if mode == 'eval':
+            autoencoder.requires_grad(False)
+            autoencoder.eval()
 
         return autoencoder.to(device)
 
