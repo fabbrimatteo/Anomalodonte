@@ -95,11 +95,14 @@ class PreProcessingTr(object):
         return self.apply(img)
 
 
-def debug():
-    img = cv2.imread('/home/fabio/output.jpg')
+def __debug():
+    from path import Path
+
+    img = cv2.imread(Path(__file__).parent / 'debug' / 'debug_img_00.png')
+    print(f'$> before -> type: {type(img)}, shape: {tuple(img.shape)}')
     img = PreProcessingTr(resized_h=628, resized_w=751, crop_x_min=147, crop_y_min=213, crop_side=256)(img)
-    print(type(img), img.shape)
+    print(f'$> after -> type: {type(img)}, shape: {tuple(img.shape)}')
 
 
 if __name__ == '__main__':
-    debug()
+    __debug()
