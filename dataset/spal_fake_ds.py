@@ -37,8 +37,8 @@ class SpalDS(Dataset):
 
         # pre processing traqnsformations
         self.trs = PreProcessingTr(
-            resized_h=628, resized_w=751,
-            crop_x_min=147, crop_y_min=213, crop_side=256
+            resized_h=256, resized_w=256,
+            crop_x_min=812, crop_y_min=660, crop_side=315
         )
 
         t0 = time.time()

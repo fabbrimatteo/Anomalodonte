@@ -23,7 +23,7 @@ def bgr2rgb(img):
     return img[[2, 1, 0]]
 
 
-class ReseizeThenCrop(object):
+class CropThenResize(object):
 
     def __init__(self, resized_h, resized_w, crop_x_min, crop_y_min, crop_side):
         # type: (int, int, int, int, int) -> None
@@ -49,11 +49,11 @@ class ReseizeThenCrop(object):
         :return: resized and corpped image
         """
         if type(img) is np.ndarray:
-            img = cv2.resize(img, (self.w, self.h))
             img = img[self.y_min:self.y_max, self.x_min:self.x_max, :]
+            img = cv2.resize(img, (self.w, self.h))
         elif type(img) is torch.Tensor:
-            img = torchvision.transforms.Resize((self.h, self.w))(img)
             img = img[:, self.y_min:self.y_max, self.x_min:self.x_max]
+            img = torchvision.transforms.Resize((self.h, self.w))(img)
         else:
             raise TypeError(f'image type must be {np.ndarray} or {torch.Tensor}, not `{type(img)}`')
 
@@ -81,7 +81,7 @@ class PreProcessingTr(object):
         """
         self.trs = torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(), bgr2rgb,
-            ReseizeThenCrop(resized_h, resized_w, crop_x_min, crop_y_min, crop_side)
+            CropThenResize(resized_h, resized_w, crop_x_min, crop_y_min, crop_side)
         ])
 
 
@@ -97,11 +97,15 @@ class PreProcessingTr(object):
 
 def __debug():
     from path import Path
+    import post_processing
 
     img = cv2.imread(Path(__file__).parent / 'debug' / 'debug_img_00.png')
     print(f'$> before -> type: {type(img)}, shape: {tuple(img.shape)}')
-    img = PreProcessingTr(resized_h=628, resized_w=751, crop_x_min=147, crop_y_min=213, crop_side=256)(img)
+    img = PreProcessingTr(resized_h=256, resized_w=256, crop_x_min=812, crop_y_min=660, crop_side=315)(img)
     print(f'$> after -> type: {type(img)}, shape: {tuple(img.shape)}')
+    img = post_processing.tensor2img(img)
+    cv2.imshow('', img)
+    cv2.waitKey()
 
 
 if __name__ == '__main__':

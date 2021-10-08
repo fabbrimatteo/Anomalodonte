@@ -4,7 +4,7 @@ import torchvision
 
 from conf import Conf
 from models.autoencoder import SimpleAutoencoder
-from pre_processing import ReseizeThenCrop
+from pre_processing import CropThenResize
 
 
 def generate_prototypes(exp_name):
@@ -18,7 +18,7 @@ def generate_prototypes(exp_name):
 
     trs = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
-        ReseizeThenCrop(resized_h=628, resized_w=751, crop_x_min=147, crop_y_min=213, crop_side=256),
+        CropThenResize(resized_h=628, resized_w=751, crop_x_min=147, crop_y_min=213, crop_side=256),
     ])
 
     out_dir = cnf.exp_log_path / 'prototypes'
