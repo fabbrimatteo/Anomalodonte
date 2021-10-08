@@ -1,31 +1,26 @@
 import cv2
 
-
-# app modes
 import numpy as np
 
 
-NORMAL_MODE = 0
-ZOOM_MODE = 1
-
-NAME = 'sellerona'
-SCALE = 0.4
+NAME = 'Crop Selector'
 
 
-class Homografinder(object):
+class CropSelector(object):
 
-    def __init__(self, in_path):
+    def __init__(self, in_path, app_scale=0.4):
         cv2.namedWindow(NAME)
         cv2.setMouseCallback(NAME, self.click_handler)
         self.img = cv2.imread(in_path)
-        self.img = cv2.resize(self.img, (0, 0), fx=0.4, fy=0.4)
+        self.img = cv2.resize(self.img, (0, 0), fx=app_scale, fy=app_scale)
         self.pt1 = None
         self.pt2 = None
 
         self.state = 'SLEEP'
+        self.app_scale = app_scale
 
 
-    def click_handler(self, event, x, y, a, b):
+    def click_handler(self, event, x, y, *args):
 
         if event == cv2.EVENT_LBUTTONDOWN and self.state == 'SLEEP':
             self.pt1 = (x, y)
@@ -58,8 +53,8 @@ class Homografinder(object):
                 self.pt1 = self.pt1[0] - delta // 2, self.pt1[1]
                 self.pt2 = self.pt1[0] + side, self.pt1[1] + side
 
-            pt1 = np.round((np.array(self.pt1) / SCALE), 0).astype(int)
-            pt2 = np.round((np.array(self.pt2) / SCALE), 0).astype(int)
+            pt1 = np.round((np.array(self.pt1) / self.app_scale), 0).astype(int)
+            pt2 = np.round((np.array(self.pt2) / self.app_scale), 0).astype(int)
             side = pt2[1] - pt1[1]
             print(f'crop_x_min={pt1[0]}, crop_y_min={pt1[1]}, crop_side={side}')
 
@@ -80,12 +75,14 @@ class Homografinder(object):
                 self.state = 'SLEEP'
                 self.pt1 = None
                 self.pt2 = None
+            elif key == 113:
+                exit(0)
             elif key != -1:
                 print(f'$> pressed KEY={key}')
 
 
 def main():
-    Homografinder(in_path='debug/debug_img_00.png').run()
+    CropSelector(in_path='debug/debug_img_00.png').run()
 
 
 if __name__ == '__main__':
