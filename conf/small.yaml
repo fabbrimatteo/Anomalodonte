@@ -9,7 +9,9 @@ BATCH_SIZE: 32
 DS_PATH: /home/matteo/PycharmProjects/Anomalodonte/dataset/spal_fake
 
 # model params
-CODE_CHANNELS: 1
+CODE_CHANNELS: 3
+CODE_H: 8
+CODE_W: 8
 CODE_NOISE: 0.25
 
 # pre-processing params

@@ -10,6 +10,8 @@ DS_PATH: /home/matteo/PycharmProjects/Anomalodonte/dataset/spal_fake
 
 # model params
 CODE_CHANNELS: 3
+CODE_H: 32
+CODE_W: 32
 CODE_NOISE: 0.25
 
 # pre-processing params

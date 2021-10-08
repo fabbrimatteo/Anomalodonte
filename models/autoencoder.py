@@ -1,3 +1,5 @@
+from typing import Union
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -5,7 +7,6 @@ from torchvision import transforms
 
 from models.base_model import BaseModel
 from models.residual import ResidualStack
-from typing import Union
 
 
 TConv2D = nn.ConvTranspose2d  # shorcut
@@ -13,7 +14,7 @@ TConv2D = nn.ConvTranspose2d  # shorcut
 
 class SimpleAutoencoder(BaseModel):
 
-    def __init__(self, mid_channels=128, n_res_layers=2, code_channels=8):
+    def __init__(self, mid_channels=128, n_res_layers=2, code_channels=8, code_h=None, code_w=None):
         # type: (int, int, int) -> None
         """
         Simple Autoencoder with residual blocks.
@@ -30,6 +31,9 @@ class SimpleAutoencoder(BaseModel):
 
         self.n_res_layer = n_res_layers
         self.code_channels = code_channels
+        self.code_h = code_h
+        self.code_w = code_w
+        self.code_shape_chw = (code_channels, code_h, code_w)
 
         self.encoder = nn.Sequential(
             # --- downscale part: (3, H, W) -> (m, H/8, W/8)
@@ -63,18 +67,28 @@ class SimpleAutoencoder(BaseModel):
             transforms.ToTensor()
         ])
 
+        self.cache = {}
+
 
     def encode(self, x, code_noise=None):
         # type: (torch.Tensor, float) -> torch.Tensor
         code = self.encoder(x)
         if self.training and code_noise is not None:
             code = code + code_noise * self.normal.sample(code.shape)
+
+        self.cache['h'] = code.shape[2]
+        self.cache['w'] = code.shape[3]
+        h = code.shape[2] if self.code_h is None else self.code_h
+        w = code.shape[3] if self.code_w is None else self.code_w
+        code = nn.AdaptiveAvgPool2d((h, w))(code)
+
         return code
 
 
-    def decode(self, x):
+    def decode(self, code):
         # type: (torch.Tensor) -> torch.Tensor
-        y = self.decoder(x)
+        code = nn.AdaptiveAvgPool2d((self.cache['h'], self.cache['w']))(code)
+        y = self.decoder(code)
         return y
 
 
@@ -128,6 +142,8 @@ class SimpleAutoencoder(BaseModel):
             'mid_channels': self.mid_channels,
             'n_res_layers': self.n_res_layer,
             'code_channels': self.code_channels,
+            'code_h': self.code_h,
+            'code_w': self.code_w
         }
         torch.save(__state, path)
 
@@ -155,7 +171,9 @@ class SimpleAutoencoder(BaseModel):
         autoencoder = cls(
             mid_channels=pth_dict['mid_channels'],
             n_res_layers=pth_dict['n_res_layers'],
-            code_channels=pth_dict['code_channels']
+            code_channels=pth_dict['code_channels'],
+            code_h=pth_dict['code_h'],
+            code_w=pth_dict['code_w'],
         )
         autoencoder.load_state_dict(pth_dict['state_dict'])
 
@@ -174,7 +192,7 @@ def main():
 
     x = torch.rand((batch_size, 3, 256, 256)).to(device)
 
-    model = SimpleAutoencoder(n_res_layers=2, code_channels=8).to(device)
+    model = SimpleAutoencoder(n_res_layers=2, code_channels=8, code_h=8, code_w=8).to(device)
 
     y = model.forward(x)
     code = model.encode(x)
