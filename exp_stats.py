@@ -1,6 +1,7 @@
 import matplotlib
 import piq
 
+
 matplotlib.use('TkAgg')
 import cv2
 import numpy as np
@@ -10,20 +11,30 @@ from conf import Conf
 from models.autoencoder import SimpleAutoencoder
 from pre_processing import PreProcessingTr
 from post_processing import tensor2img
-from piq import MultiScaleSSIMLoss
+import per
+from scipy import special
 from torch import nn
+import torch
+from prototypes import load_prototypes
 
 
 def get_anomaly_map(x_pred, x_true, n_scales=3):
     h, w, _ = x_true.shape
-    maps = [((x_pred - x_true)**2).mean(-1)]
+    maps = [((x_pred - x_true) ** 2).mean(-1)]
     for i in range(1, n_scales):
         h, w = h // 2, w // 2
         resized_x_pred = cv2.resize(x_pred, (h, w))
         resized_x_true = cv2.resize(x_true, (h, w))
-        m = ((resized_x_pred - resized_x_true)**2).mean(-1)
+        m = ((resized_x_pred - resized_x_true) ** 2).mean(-1)
         maps.append(cv2.resize(m, (x_true.shape[0], x_true.shape[1])))
     return np.sum(maps, 0)
+
+
+def get_ideal_pred(model, x, p_list, device):
+    code = model.encode(x)[0]
+    all_diffs = [torch.nn.MSELoss()(p, code).item() for p in p_list]
+    selected_prototype = p_list[np.argmin(all_diffs)]
+    return model.decode(selected_prototype.unsqueeze(0).to(device))
 
 
 def print_stats(array):
@@ -40,6 +51,7 @@ def print_stats(array):
     print(f'\t$> q0.75: {q3:.2f}')
     print(f'\t$> q0.95: {np.quantile(array, 0.95):.2f}')
     print(f'\t$> whiskers: [{q1 - 1.5 * (q3 - q1):.2f}, {q3 + 1.5 * (q3 - q1):.2f}]')
+    return q1 - 1.5 * (q3 - q1), q3 + 1.5 * (q3 - q1)
 
 
 def get_anomaly_type(file_name):
@@ -53,8 +65,8 @@ def get_anomaly_type(file_name):
 
 def results(exp_name, show_visual_res=False):
     cnf = Conf(exp_name=exp_name)
-    cnf.device = 'cpu'
 
+    # p_list = load_prototypes(ds_path=cnf.exp_log_path)
     model = SimpleAutoencoder.init_from_pth(pth_file_path=cnf.exp_log_path / 'best.pth', device=cnf.device)
     trs = PreProcessingTr(
         resized_h=256, resized_w=256,
@@ -79,7 +91,8 @@ def results(exp_name, show_visual_res=False):
         # with shape (C, H, W) and values in [0, 1]
         y_true = x.clone()
         y_pred = model.forward(x)
-        mse_map = ((y_pred[0] - y_true[0])**2).mean(0)
+        # y_pred_ideal = get_ideal_pred(model, x, p_list, cnf.device)
+        mse_map = ((y_pred[0] - y_true[0]) ** 2).mean(0)
 
         # target and prediction: type=np.ndarray
         # with shape (H, W, C) and values in [0, 255]
@@ -87,19 +100,17 @@ def results(exp_name, show_visual_res=False):
         img_pred = tensor2img(y_pred)
         mse_map = tensor2img(mse_map)
 
-        anomaly_score = piq.MultiScaleSSIMLoss()(y_pred, y_true)
+        # anomaly_score = piq.MultiScaleSSIMLoss()(y_pred, y_true).item()
+        anomaly_score = torch.nn.MSELoss()(model.encode(y_pred), model.encode(y_true)).item()
         anomaly_score *= 255
 
-        if show_visual_res:
-            fig, axes = plt.subplots(1, 3, figsize=(40, 30), dpi=100)
-            axes[0].imshow(img_true)
-            axes[0].set_title(f'true ({img_path.basename()})')
-            axes[1].imshow(img_pred)
-            axes[1].set_title(f'pred')
-            axes[2].imshow(mse_map, cmap='jet', vmin=0, vmax=255)
-            axes[2].set_title(f'{100*(anomaly_score/165.62):.2f}%')
-            plt.show()
-            plt.close(fig)
+        q075 = 0.01
+        whis = (0.02 / 1.5) * 2
+        anomaly_perc = 0
+        if anomaly_score > q075:
+            anomaly_perc = np.exp((np.log(2) / whis) * (anomaly_score - q075)) - 1
+        if anomaly_perc > 1:
+            anomaly_perc = 1
 
         # get GT class (good or bad) from image name
         is_good = get_anomaly_type(img_path.basename()).startswith('0')
@@ -109,12 +120,28 @@ def results(exp_name, show_visual_res=False):
         else:
             bad_img_scores.append(anomaly_score)
 
-    if len(good_img_scores) > 4:
-        print(f'$> GOOD:')
-        print_stats(good_img_scores)
+        if show_visual_res and ((is_good and anomaly_perc > 0.75) or (not is_good and anomaly_perc < 0.25)):
+            per.main(img=img_true[:, :, ::-1], perc=float(anomaly_perc))
+            # fig, axes = plt.subplots(1, 3, figsize=(40, 30), dpi=100)
+            # axes[0].imshow(img_true)
+            # axes[0].set_title(f'true ({img_path.basename()})')
+            # axes[1].imshow(img_pred)
+            # axes[1].set_title(f'pred')
+            # axes[2].imshow(mse_map, cmap='jet', vmin=0, vmax=255)
+            # axes[2].set_title(f'{anomaly_score:.2f}->{100 * (anomaly_perc):.2f}%')
+            # plt.show()
+            # plt.close(fig)
+
+    print()
+    g0, g1 = 0, 0
+    b0, b1 = 0, 0
     if len(bad_img_scores) > 4:
         print(f'$> BAD:')
-        print_stats(bad_img_scores)
+        b0, b1 = print_stats(bad_img_scores)
+        b0 = min(bad_img_scores)
+    if len(good_img_scores) > 4:
+        print(f'$> GOOD:')
+        g0, g1 = print_stats(good_img_scores)
 
     plt.figure(1)
     if len(bad_img_scores) > 0:
@@ -123,16 +150,21 @@ def results(exp_name, show_visual_res=False):
         plt.hlines(np.quantile(good_img_scores, 0.75), 0, 3, linestyles='--', colors='#ecf0f1')
         plt.hlines(np.quantile(bad_img_scores, 0.25), 0, 3, linestyles='--', colors='#ecf0f1')
         plt.hlines(np.quantile(bad_img_scores, 0.75), 0, 3, linestyles='--', colors='#ecf0f1')
+        plt.hlines((0.02 / 1.5) * 2, 0, 3, colors='#1abc9c')
         plt.boxplot(
             [good_img_scores, bad_img_scores], labels=['good', 'bad'],
             showfliers=True, medianprops={'color': '#e74c3c'}
         )
     else:
-        plt.boxplot(good_img_scores, labels=['good'], showfliers=True, medianprops={'color': '#e74c3c'})
+        plt.boxplot(good_img_scores, showfliers=True, medianprops={'color': '#e74c3c'})
     plt.show()
+
+    hg = np.histogram(good_img_scores, 16, range=(0, max(good_img_scores)))[0]
+    hb = np.histogram(bad_img_scores, 16, range=(0, max(good_img_scores)))[0]
+    print(special.kl_div(good_img_scores, bad_img_scores))
 
     return 0
 
 
 if __name__ == '__main__':
-    results(exp_name='ultra_small', show_visual_res=False)
+    results(exp_name='ultra_small_less_noise', show_visual_res=True)

@@ -36,4 +36,4 @@ def load_prototypes(ds_path):
 
 
 if __name__ == '__main__':
-    generate_prototypes(exp_name='small')
+    generate_prototypes(exp_name='ultra_small')

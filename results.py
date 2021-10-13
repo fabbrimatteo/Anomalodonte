@@ -116,6 +116,8 @@ def results(exp_name):
         axes[0, 2].set_title(f'{fancy_map.mean() * 100:.2f}')
 
         axes[1, 0].imshow(x_true[:, :, ::-1])
+        bin_m = (mse_map.copy() > 0.5).astype(int)
+        axes[1, 0].imshow(bin_m, vmin=0, vmax=1, cmap='jet', alpha=0.4)
         axes[1, 0].set_title(f'{f.basename()}')
 
         axes[1, 1].imshow(x_pred_real[:, :, ::-1])

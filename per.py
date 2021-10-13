@@ -15,15 +15,12 @@ def bar(img, x_min, y_min, h, w, color):
     return img
 
 
-def main():
+def main(img, perc):
     pad = 32
     barh = 64
-    perc = 0.75
-    img_path = mmu.resources.DEMO_RGB_JPG
-    img = cv2.imread(img_path)
 
     h, w, _ = img.shape
-    scale_factor = 960 / w
+    scale_factor = 540 / w
     img = cv2.resize(img, (0, 0), fx=scale_factor, fy=scale_factor)
     h, w, _ = img.shape
 
@@ -33,7 +30,7 @@ def main():
     bck = bar(bck, x_min=pad + barh // 2, y_min=2 * pad + h, h=barh, w=w - barh, color=(26, 20, 17))
 
     cx, cy = bck.shape[1] // 2, bck.shape[0] // 2
-    barlen = int(round((w - barh) * perc))
+    barlen = max(int(round((w - barh) * perc)), (w-barh)//8)
 
     c = int(round(127 * 0.5 - perc * 127 * 0.5))
     c = np.array([[[c, int(round(255 * (90 / 100))), int(round(255 * (64 / 100)))]]], dtype=np.uint8)

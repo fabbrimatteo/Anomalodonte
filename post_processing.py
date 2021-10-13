@@ -14,7 +14,8 @@ def tensor2img(tensor_img):
     numpy_img = tensor_img.detach().cpu().numpy()  # from tensor to array
     if len(numpy_img.shape) == 4 and numpy_img.shape[0] == 1:
         numpy_img = numpy_img[0]
-    numpy_img = numpy_img.transpose((1, 2, 0))  # from CHW to HWC
+    if len(numpy_img.shape) == 3:
+        numpy_img = numpy_img.transpose((1, 2, 0))  # from CHW to HWC
     numpy_img = (numpy_img * 255).astype(np.uint8)  # from [0,1] to [0,255]
     return numpy_img
 
