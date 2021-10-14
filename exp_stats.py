@@ -13,9 +13,16 @@ from pre_processing import PreProcessingTr
 from post_processing import tensor2img
 import per
 from scipy import special
+import torchvision
+from pre_processing import bgr2rgb
 from torch import nn
 import torch
 from prototypes import load_prototypes
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+from typing import Dict
+from conf import Conf
+from dataset.spal_fake_ds import SpalDS
 
 
 def get_anomaly_map(x_pred, x_true, n_scales=3):
@@ -68,10 +75,17 @@ def results(exp_name, show_visual_res=False):
 
     # p_list = load_prototypes(ds_path=cnf.exp_log_path)
     model = SimpleAutoencoder.init_from_pth(pth_file_path=cnf.exp_log_path / 'best.pth', device=cnf.device)
-    trs = PreProcessingTr(
-        resized_h=256, resized_w=256,
-        crop_x_min=812, crop_y_min=660, crop_side=315
-    )
+
+    # pre processing traqnsformations
+    if '_rect' in cnf.ds_path:
+        trs = torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(), bgr2rgb,
+        ])
+    else:
+        trs = PreProcessingTr(
+            resized_h=256, resized_w=256,
+            crop_x_min=812, crop_y_min=660, crop_side=315
+        )
 
     all_paths = list((cnf.ds_path / 'test').files())
     random.shuffle(all_paths)
@@ -167,4 +181,4 @@ def results(exp_name, show_visual_res=False):
 
 
 if __name__ == '__main__':
-    results(exp_name='ultra_small_less_noise', show_visual_res=True)
+    results(exp_name='ultra_small_less_noise', show_visual_res=False)

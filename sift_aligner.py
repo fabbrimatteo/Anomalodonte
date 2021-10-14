@@ -1,5 +1,11 @@
 import numpy as np
 import cv2
+from path import Path
+from pre_processing import CropThenResize
+import random
+from time import time
+
+OUT_DIR = Path('dataset/spal_fake_rect')
 
 
 class SiftAligner(object):
@@ -46,18 +52,28 @@ class SiftAligner(object):
         return good_end, img_out
 
 
+def realign_and_cut(mode='train'):
+    target = cv2.imread('debug/debug_img_00.png')
+    sift_aligner = SiftAligner(target_img=target)
+
+    tr = CropThenResize(resized_h=256, resized_w=256, crop_x_min=812, crop_y_min=660, crop_side=315)
+
+    in_dir = Path(f'dataset/spal_fake/{mode}')
+    out_dir = OUT_DIR / mode
+
+    all_files = list(in_dir.files())
+    random.shuffle(all_files)
+
+    for i, img_path in enumerate(all_files):
+        if len(out_dir.files(str(img_path.basename()))) == 0:
+            t0 = time()
+            img = cv2.imread(img_path)
+            _, aligned_img = sift_aligner.align(img)
+            print('W', out_dir / img_path.basename(), f'{time()-t0:.2f}s')
+            cv2.imwrite(out_dir / img_path.basename(), tr.apply(aligned_img))
+        else:
+            print('S', out_dir / img_path.basename())
+
+
 if __name__ == '__main__':
-    # img1 = cv2.imread('1/20210920173740_601102626521200000037704_1.bmp')  # queryImage
-    img1 = cv2.imread('2/good_0100.png')  # queryImage
-    # img2 = cv2.imread('1/20210920173902_601102626521200000037701_1.bmp')  # trainImage
-    img2 = cv2.imread('2/good_0156.png')  # trainImage
-
-    sift_aligner = SiftAligner(target_img=img2)
-    res, out = sift_aligner.align(img1)
-
-    if res:
-        cv2.imshow("out", out)
-        cv2.waitKey()
-        cv2.imwrite('2/out.png', out)
-    else:
-        print("error no match found")
+    realign_and_cut(mode='test')

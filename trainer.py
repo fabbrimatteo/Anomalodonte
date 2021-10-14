@@ -15,6 +15,7 @@ from dataset.spal_fake_ds import SpalDS
 from models.autoencoder import SimpleAutoencoder
 from models.dd_loss import DDLoss
 from progress_bar import ProgressBar
+from evaluator import Evaluator
 
 
 class Trainer(object):
@@ -53,7 +54,7 @@ class Trainer(object):
 
         # starting values
         self.epoch = 0
-        self.best_test_loss = None
+        self.best_test_accuracy = None
         self.patience = self.cnf.max_patience
 
         # init progress bar
@@ -77,7 +78,7 @@ class Trainer(object):
             self.progress_bar.current_epoch = self.epoch
             self.model.load_state_dict(ck['model'])
             self.optimizer.load_state_dict(ck['optimizer'])
-            self.best_test_loss = self.best_test_loss
+            self.best_test_accuracy = self.best_test_accuracy
 
 
     def save_ck(self):
@@ -88,7 +89,7 @@ class Trainer(object):
             'epoch': self.epoch,
             'model': self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
-            'best_test_loss': self.best_test_loss
+            'best_test_loss': self.best_test_accuracy
         }
         torch.save(ck, self.log_path / 'training.ck')
 
@@ -107,7 +108,7 @@ class Trainer(object):
 
             self.optimizer.zero_grad()
 
-            x, y_true = sample
+            x, y_true, _ = sample
             x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
 
             y_pred = self.model.forward(x, code_noise=self.cnf.code_noise)
@@ -140,9 +141,12 @@ class Trainer(object):
         self.model.eval()
 
         t = time()
+        evaluator = Evaluator(model=self.model, cnf=self.cnf)
+        accuracy = evaluator.get_accuracy()
+
         test_losses = []
         for step, sample in enumerate(self.test_loader):
-            x, y_true = sample
+            x, y_true, _ = sample
             x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
             y_pred = self.model.forward(x)
 
@@ -158,19 +162,19 @@ class Trainer(object):
                 self.sw.add_image(tag=f'results_{step}', img_tensor=grid, global_step=self.epoch)
 
         # save best model
-        mean_test_loss = np.mean(test_losses)
-        if self.best_test_loss is None or mean_test_loss < self.best_test_loss:
-            self.best_test_loss = mean_test_loss
+        if self.best_test_accuracy is None or accuracy > self.best_test_accuracy:
+            self.best_test_accuracy = accuracy
             self.patience = self.cnf.max_patience
             self.model.save_w(self.log_path / 'best.pth')
         else:
             self.patience = self.patience - 1
 
         # log test results
-        print(f'\t● AVG Loss on TEST-set: {mean_test_loss:.6f}'
+        print(f'\t● Accuracy on TEST-set: {100 * accuracy:.2f}%'
               f' │ patience: {self.patience}'
               f' │ T: {time() - t:.2f} s')
-        self.sw.add_scalar(tag='test_loss', scalar_value=mean_test_loss, global_step=self.epoch)
+        self.sw.add_scalar(tag='test_loss', scalar_value=np.mean(test_losses), global_step=self.epoch)
+        self.sw.add_scalar(tag='accuracy', scalar_value=100 * accuracy, global_step=self.epoch)
         self.sw.add_scalar(tag='patience', scalar_value=self.patience, global_step=self.epoch)
 
         if self.patience == 0:

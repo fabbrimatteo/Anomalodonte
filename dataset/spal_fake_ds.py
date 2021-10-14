@@ -12,6 +12,18 @@ from torch.utils.data import Dataset
 
 from conf import Conf
 from pre_processing import PreProcessingTr
+import torchvision
+from pre_processing import bgr2rgb
+from path import Path
+
+def get_anomaly_type(file_name):
+    file_name = Path(file_name).basename()
+    if 'good' in file_name:
+        return '000'
+    else:
+        x = file_name.split('_')[1]
+        a1, a2, a3 = int(x[1]), int(x[2]), int(x[3])
+        return f'{a1}{a2}{a3}'
 
 
 class SpalDS(Dataset):
@@ -33,13 +45,19 @@ class SpalDS(Dataset):
         self.mode = mode
 
         self.imgs = []
+        self.labels = []
         self.avg_img = None
 
         # pre processing traqnsformations
-        self.trs = PreProcessingTr(
-            resized_h=256, resized_w=256,
-            crop_x_min=812, crop_y_min=660, crop_side=315
-        )
+        if '_rect' in self.cnf.ds_path:
+            self.trs = torchvision.transforms.Compose([
+                torchvision.transforms.ToTensor(), bgr2rgb,
+            ])
+        else:
+            self.trs = PreProcessingTr(
+                resized_h=256, resized_w=256,
+                crop_x_min=812, crop_y_min=660, crop_side=315
+            )
 
         t0 = time.time()
         print(f'$> loading images into memory: please wait...')
@@ -50,6 +68,7 @@ class SpalDS(Dataset):
             x = cv2.imread(img_path)
             x = self.trs(x)
             self.imgs.append(x)
+            self.labels.append('good' if get_anomaly_type(img_path).startswith('0') else 'bad')
         print(f'\r\t$> done in {time.time() - t0:.0f} seconds')
 
 
@@ -59,9 +78,10 @@ class SpalDS(Dataset):
 
 
     def __getitem__(self, i):
-        # type: (int) -> Tuple[torch.Tensor, torch.Tensor]
+        # type: (int) -> Tuple[torch.Tensor, torch.Tensor, str]
         x = self.imgs[i]
-        return x, x
+        label = self.labels[i]
+        return x, x, label
 
 
     @staticmethod
