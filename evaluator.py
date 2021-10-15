@@ -9,20 +9,16 @@ from torch.utils.data import DataLoader
 from typing import Dict
 from conf import Conf
 from dataset.spal_fake_ds import SpalDS
+from matplotlib import pyplot as plt
+import utils
+import piq
+import torchvision
 
 
 class Evaluator(object):
 
-    def __init__(self, cnf=None, model=None, test_loader=None):
+    def __init__(self, cnf, model=None, test_loader=None):
         # type: (Conf, SimpleAutoencoder, DataLoader) -> None
-
-        assert (model is not None) or (cnf is not None), \
-            '[!] `model` and `cnf` can not be both `None`; ' \
-            'please specify a value for (at least) one of them'
-
-        assert (test_loader is not None) or (cnf is not None), \
-            '[!] `test_loader` and `cnf` can not be both `None`; ' \
-            'please specify a value for (at least) one of them'
 
         self.test_loader = test_loader
         self.model = model
@@ -35,11 +31,22 @@ class Evaluator(object):
         if self.test_loader is None:
             test_set = SpalDS(cnf=self.cnf, mode='test')
             self.test_loader = DataLoader(
-                dataset=test_set, batch_size=1, num_workers=1,
+                dataset=test_set, batch_size=1, num_workers=0,
                 worker_init_fn=test_set.wif_test, shuffle=False, pin_memory=False,
             )
 
         self.loss_fn = nn.MSELoss()
+
+
+    def __get_anomaly_score(self, code_pred, code_true, y_pred, y_true):
+        anomaly_score = 0
+        if self.cnf.rec_error_fn == 'CODE_MSE_LOSS':
+            anomaly_score = nn.MSELoss()(code_pred, code_true).item()
+        elif self.cnf.rec_error_fn == 'MSE_LOSS':
+            anomaly_score = nn.MSELoss()(y_pred, y_true).item()
+        elif self.cnf.rec_error_fn == 'MS_SSIM_LOSS':
+            anomaly_score = piq.MultiScaleSSIMLoss()(y_pred, y_true).item()
+        return anomaly_score
 
 
     def get_stats(self):
@@ -56,7 +63,8 @@ class Evaluator(object):
             y_pred = self.model.decode(code_true)
             code_pred = self.model.encode(y_pred)
 
-            anomaly_score = self.loss_fn(y_pred, y_true).item()
+            anomaly_score = self.__get_anomaly_score(code_pred, code_true, y_pred, y_true)
+
             if not label in score_dict:
                 score_dict[label] = []
             score_dict[label].append(anomaly_score)
@@ -65,6 +73,7 @@ class Evaluator(object):
             q1 = np.quantile(score_dict[key], 0.25)
             q3 = np.quantile(score_dict[key], 0.75)
             stats_dict[key] = {
+                'rec_error_fn': self.cnf.rec_error_fn,
                 'mean': np.mean(score_dict[key]),
                 'std': np.std(score_dict[key]),
                 'min': np.min(score_dict[key]),
@@ -79,11 +88,28 @@ class Evaluator(object):
                 'wth2': q3 + 2 * (q3 - q1),
             }
 
-        return stats_dict
+        fig = plt.figure()
+        plt.hlines(np.quantile(score_dict['good'], 0.50), 0, 3, linestyles='--', colors='#e74c3c')
+        plt.hlines(np.quantile(score_dict['good'], 0.25), 0, 3, linestyles='--', colors='#ecf0f1')
+        plt.hlines(np.quantile(score_dict['good'], 0.75), 0, 3, linestyles='--', colors='#ecf0f1')
+        plt.hlines(np.quantile(score_dict['bad'], 0.25), 0, 3, linestyles='--', colors='#ecf0f1')
+        plt.hlines(np.quantile(score_dict['bad'], 0.75), 0, 3, linestyles='--', colors='#ecf0f1')
+        plt.hlines(stats_dict['good']['wth2'], 0, 3, colors='#1abc9c')
+        plt.boxplot(
+            [score_dict['good'], score_dict['bad']], labels=['good', 'bad'],
+            showfliers=True, medianprops={'color': '#e74c3c'}
+        )
+        plt.ylim(0, 0.035)
+
+        boxplot = utils.pyplot_to_tensor(fig)
+        plt.close(fig)
+        return stats_dict, boxplot
 
 
-    def get_accuracy(self):
-        stats_dict = self.get_stats()
+    def get_accuracy(self, stats_dict=None):
+
+        if stats_dict is None:
+            stats_dict, _ = self.get_stats()
 
         anomaly_th = stats_dict['good']['wth2']
 
@@ -97,17 +123,20 @@ class Evaluator(object):
             code_true = self.model.encode(x)
             y_pred = self.model.decode(code_true)
             code_pred = self.model.encode(y_pred)
-            anomaly_level = self.loss_fn(y_pred, y_true).item()
+            anomaly_score = self.__get_anomaly_score(code_pred, code_true, y_pred, y_true)
 
-            label_pred = 'good' if anomaly_level < anomaly_th else 'bad'
+            label_pred = 'good' if anomaly_score < anomaly_th else 'bad'
             if label_pred == label_true:
                 score += 1
+            print(f'P: {label_pred}, T: {label_true}, A: {self.model.get_code_anomaly_perc(x)*100}%')
+            # else:
+            #     torchvision.utils.save_image(y_true, f'error_gt_{label_pred}.{i}.png')
 
         accuracy = score / len(self.test_loader)
         return accuracy
 
 
 if __name__ == '__main__':
-    eval =Evaluator(cnf=Conf(exp_name='ultra_small_less_noise'))
+    eval = Evaluator(cnf=Conf(exp_name='magalli'))
     a = eval.get_accuracy()
     print(a)

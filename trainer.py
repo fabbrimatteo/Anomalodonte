@@ -63,7 +63,10 @@ class Trainer(object):
         # possibly load checkpoint
         self.load_ck()
 
-        self.loss_fn = DDLoss(mse_w=10, ssim_w=3, vgg_w=0.00001, device=cnf.device)
+        if self.cnf.loss_fn == 'L1+MS_SSIM+VGG':
+            self.loss_fn = DDLoss(mse_w=10, ssim_w=3, vgg_w=0.00001, device=cnf.device)
+        else:
+            self.loss_fn = torch.nn.MSELoss()
 
 
     def load_ck(self):
@@ -142,7 +145,9 @@ class Trainer(object):
 
         t = time()
         evaluator = Evaluator(model=self.model, cnf=self.cnf)
-        accuracy = evaluator.get_accuracy()
+        stats_dict, boxplot = evaluator.get_stats()
+        self.sw.add_image(tag=f'boxplot', img_tensor=boxplot, global_step=self.epoch)
+        accuracy = evaluator.get_accuracy(stats_dict=stats_dict)
 
         test_losses = []
         for step, sample in enumerate(self.test_loader):
@@ -165,7 +170,8 @@ class Trainer(object):
         if self.best_test_accuracy is None or accuracy > self.best_test_accuracy:
             self.best_test_accuracy = accuracy
             self.patience = self.cnf.max_patience
-            self.model.save_w(self.log_path / 'best.pth')
+            self.model.save_w(self.log_path / 'best.pth', cnf_dict=self.cnf.dict_view, test_stats=stats_dict)
+            torch.save(stats_dict, self.log_path / 'stats.pth')
         else:
             self.patience = self.patience - 1
 

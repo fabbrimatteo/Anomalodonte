@@ -1,3 +1,5 @@
+from typing import Dict
+from typing import Optional
 from typing import Union
 
 import numpy as np
@@ -68,10 +70,12 @@ class SimpleAutoencoder(BaseModel):
         ])
 
         self.cache = {}
+        self.stats = None
+        self.cnf_dict = None
 
 
     def encode(self, x, code_noise=None):
-        # type: (torch.Tensor, float) -> torch.Tensor
+        # type: (torch.Tensor, Optional[float]) -> torch.Tensor
         code = self.encoder(x)
 
         if self.training and code_noise is not None:
@@ -133,8 +137,8 @@ class SimpleAutoencoder(BaseModel):
         return code.cpu().numpy()
 
 
-    def save_w(self, path):
-        # type: (str) -> None
+    def save_w(self, path, test_stats=None, cnf_dict=None):
+        # type: (str, Optional[Dict], Optional[Dict]) -> None
         """
         save model weights at the specified path
         """
@@ -144,7 +148,9 @@ class SimpleAutoencoder(BaseModel):
             'n_res_layers': self.n_res_layer,
             'code_channels': self.code_channels,
             'code_h': self.code_h,
-            'code_w': self.code_w
+            'code_w': self.code_w,
+            'test_stats': test_stats,
+            'cnf_dict': cnf_dict
         }
         torch.save(__state, path)
 
@@ -177,12 +183,46 @@ class SimpleAutoencoder(BaseModel):
             code_w=pth_dict['code_w'],
         )
         autoencoder.load_state_dict(pth_dict['state_dict'])
+        autoencoder.cnf_dict = pth_dict['cnf_dict']
+        autoencoder.stats = pth_dict['test_stats']
 
         if mode == 'eval':
             autoencoder.requires_grad(False)
             autoencoder.eval()
 
         return autoencoder.to(device)
+
+
+    def get_code_anomaly_score(self, x):
+        # type: (torch.Tensor) -> torch.Tensor
+
+        # backup function to restore the working mode after method call
+        backup_function = self.train if self.training else self.eval
+
+        self.eval()
+        with torch.no_grad():
+            code_true = self.encode(x, code_noise=None)
+            x_pred = self.decode(code_true)
+            code_pred = self.encode(x_pred, code_noise=None)
+
+            # MSE with aggregation (mean) on (C, H, W,)
+            # >> code_error.shape = (<batch_size>,)
+            code_error = ((code_pred - code_true) ** 2).mean([1, 2, 3])
+
+        # restore previous working mode (train/eval)
+        backup_function()
+
+        return code_error
+
+
+    def get_code_anomaly_perc(self, x):
+        # type: (torch.Tensor) -> ...
+        anomaly_score = self.get_code_anomaly_score(x).item()
+        if anomaly_score < self.stats['good']['q0.75']:
+            anomaly_perc = 0
+        else:
+            anomaly_perc = anomaly_score / (2 * self.stats['good']['w1'])
+        return min(anomaly_perc, 1)
 
 
 # ---------
@@ -195,6 +235,7 @@ def main():
 
     model = SimpleAutoencoder(n_res_layers=2, code_channels=8, code_h=8, code_w=8).to(device)
 
+    model.get_code_anomaly_score(x)
     y = model.forward(x)
     code = model.encode(x)
 

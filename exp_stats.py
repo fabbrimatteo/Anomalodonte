@@ -55,9 +55,9 @@ def print_stats(array):
     print(f'\t$> q0.05: {np.quantile(array, 0.05):.2f}')
     print(f'\t$> q0.25: {q1:.2f}')
     print(f'\t$> q0.50: {np.quantile(array, 0.50):.2f}')
-    print(f'\t$> q0.75: {q3:.2f}')
+    print(f'\t$> q0.75: {q3:.6f}')
     print(f'\t$> q0.95: {np.quantile(array, 0.95):.2f}')
-    print(f'\t$> whiskers: [{q1 - 1.5 * (q3 - q1):.2f}, {q3 + 1.5 * (q3 - q1):.2f}]')
+    print(f'\t$> whiskers: [{q1 - 1.5 * (q3 - q1):.2f}, {q3 + 1.5 * (q3 - q1):.6f}]')
     return q1 - 1.5 * (q3 - q1), q3 + 1.5 * (q3 - q1)
 
 
@@ -118,8 +118,8 @@ def results(exp_name, show_visual_res=False):
         anomaly_score = torch.nn.MSELoss()(model.encode(y_pred), model.encode(y_true)).item()
         anomaly_score *= 255
 
-        q075 = 0.01
-        whis = (0.02 / 1.5) * 2
+        q075 = 0.274749
+        whis = (0.463293 / 1.5) * 2
         anomaly_perc = 0
         if anomaly_score > q075:
             anomaly_perc = np.exp((np.log(2) / whis) * (anomaly_score - q075)) - 1
@@ -134,7 +134,8 @@ def results(exp_name, show_visual_res=False):
         else:
             bad_img_scores.append(anomaly_score)
 
-        if show_visual_res and ((is_good and anomaly_perc > 0.75) or (not is_good and anomaly_perc < 0.25)):
+        if show_visual_res:
+            anomaly_perc = model.get_code_anomaly_perc(x)
             per.main(img=img_true[:, :, ::-1], perc=float(anomaly_perc))
             # fig, axes = plt.subplots(1, 3, figsize=(40, 30), dpi=100)
             # axes[0].imshow(img_true)
@@ -164,7 +165,7 @@ def results(exp_name, show_visual_res=False):
         plt.hlines(np.quantile(good_img_scores, 0.75), 0, 3, linestyles='--', colors='#ecf0f1')
         plt.hlines(np.quantile(bad_img_scores, 0.25), 0, 3, linestyles='--', colors='#ecf0f1')
         plt.hlines(np.quantile(bad_img_scores, 0.75), 0, 3, linestyles='--', colors='#ecf0f1')
-        plt.hlines((0.02 / 1.5) * 2, 0, 3, colors='#1abc9c')
+        plt.hlines((0.463293 / 1.5) * 2, 0, 3, colors='#1abc9c')
         plt.boxplot(
             [good_img_scores, bad_img_scores], labels=['good', 'bad'],
             showfliers=True, medianprops={'color': '#e74c3c'}
@@ -181,4 +182,4 @@ def results(exp_name, show_visual_res=False):
 
 
 if __name__ == '__main__':
-    results(exp_name='ultra_small_less_noise', show_visual_res=False)
+    results(exp_name='magalli', show_visual_res=True)

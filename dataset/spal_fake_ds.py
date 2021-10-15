@@ -64,7 +64,11 @@ class SpalDS(Dataset):
 
         all_paths = (self.cnf.ds_path / mode).files()
         for i, img_path in enumerate(all_paths):
-            print(f'\r\t$> {i + 1} of {len(all_paths)}', end='')
+            anomaly_type = get_anomaly_type(img_path)
+            if anomaly_type.startswith('0') and '1' in anomaly_type:
+                continue
+            if not '_rect' in str(self.cnf.ds_path.basename()):
+                print(f'\r\t$> {i + 1} of {len(all_paths)}', end='')
             x = cv2.imread(img_path)
             x = self.trs(x)
             self.imgs.append(x)
@@ -111,8 +115,9 @@ class SpalDS(Dataset):
 
 
 def main():
-    cnf = Conf(exp_name='default')
-    ds = SpalDS(cnf=cnf, mode='train')
+    cnf = Conf(exp_name='capra')
+    ds = SpalDS(cnf=cnf, mode='test')
+    print(len(ds), len([l for l in ds.labels if l=='good']), len([l for l in ds.labels if l=='bad']))
 
 
 if __name__ == '__main__':

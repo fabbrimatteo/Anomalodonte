@@ -47,6 +47,16 @@ class Conf(object):
         NAS_PATH = Path('/nas/softechict-nas-3/matteo')
 
 
+    @property
+    def dict_view(self):
+        x = self.__dict__
+        y = {}
+        for key in x:
+            if not key in self.keys_to_hide:
+                y[key] = x[key]
+        return y
+
+
     def __init__(self, conf_file_path=None, seed=None, exp_name=None, log=True):
         # type: (str, int, str, bool) -> None
         """
@@ -94,6 +104,8 @@ class Conf(object):
         self.epochs = y.get('EPOCHS', 10)  # type: int
         self.n_workers = y.get('N_WORKERS', 4)  # type: int
         self.batch_size = y.get('BATCH_SIZE', 8)  # type: int
+        self.loss_fn = y.get('LOSS_FN', 'L1+MS_SSIM+VGG')  # type: str
+        self.rec_error_fn = y.get('REC_ERROR_FN', 'CODE_MSE_LOSS')  # type: str
         self.max_patience = y.get('MAX_PATIENCE', 8)  # type: int
         self.code_channels = y.get('CODE_CHANNELS', 4)  # type: int
         self.code_h = y.get('CODE_H', None)  # type: Optional[int]
@@ -131,10 +143,9 @@ class Conf(object):
     def __str__(self):
         # type: () -> str
         out_str = ''
-        for key in self.__dict__:
-            if key in self.keys_to_hide:
-                continue
-            value = self.__dict__[key]
+        dw = self.dict_view
+        for key in dw:
+            value = dw[key]
             if type(value) is Path or type(value) is str:
                 value = value.replace(Conf.NAS_PATH, '$CAPRA_PATH')
                 value = termcolor.colored(value, 'yellow')
@@ -150,8 +161,9 @@ class Conf(object):
     def no_color_str(self):
         # type: () -> str
         out_str = ''
-        for key in self.__dict__:
-            value = self.__dict__[key]
+        dw = self.dict_view
+        for key in dw:
+            value = dw[key]
             if type(value) is Path or type(value) is str:
                 value = value.replace(Conf.NAS_PATH, '$NAS_PATH')
             out_str += f'{key.upper()}: {value}\n'
