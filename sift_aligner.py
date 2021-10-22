@@ -5,7 +5,7 @@ from pre_processing import CropThenResize
 import random
 from time import time
 
-OUT_DIR = Path('dataset/spal_fake_rect')
+OUT_DIR = Path('dataset/spal_fake_rect2')
 
 
 class SiftAligner(object):
@@ -54,9 +54,22 @@ class SiftAligner(object):
 
 def realign_and_cut(mode='train'):
     target = cv2.imread('debug/debug_img_00.png')
+
+
     sift_aligner = SiftAligner(target_img=target)
 
     tr = CropThenResize(resized_h=256, resized_w=256, crop_x_min=812, crop_y_min=660, crop_side=315)
+
+    t2 = target.copy()
+    t2 = cv2.rectangle(t2, (812, 660), (816+315, 660+315), color=(52//2, 235//2, 128//2), thickness=9)
+    t2 = cv2.rectangle(t2, (812, 660), (816+315, 660+315), color=(52, 235, 128), thickness=7)
+
+    cv2.imwrite(f'report/reference_guide.jpg', t2)
+
+    cv2.imwrite(f'report/reference.jpg', target)
+    cv2.imwrite(f'report/reference_cut.jpg', tr.apply(target))
+
+
 
     in_dir = Path(f'dataset/spal_fake/{mode}')
     out_dir = OUT_DIR / mode
@@ -68,9 +81,13 @@ def realign_and_cut(mode='train'):
         if len(out_dir.files(str(img_path.basename()))) == 0:
             t0 = time()
             img = cv2.imread(img_path)
+            cv2.imwrite(f'report/{i:03d}_original.jpg', img)
             _, aligned_img = sift_aligner.align(img)
+            cv2.imwrite(f'report/{i:03d}_aligned.jpg', img)
             print('W', out_dir / img_path.basename(), f'{time()-t0:.2f}s')
-            cv2.imwrite(out_dir / img_path.basename(), tr.apply(aligned_img))
+            cv2.imwrite(f'report/{i:03d}_original_cut.jpg', tr.apply(img))
+            cv2.imwrite(f'report/{i:03d}_aligned.jpg', tr.apply(aligned_img))
+            #cv2.imwrite(out_dir / img_path.basename(), tr.apply(aligned_img))
         else:
             print('S', out_dir / img_path.basename())
 

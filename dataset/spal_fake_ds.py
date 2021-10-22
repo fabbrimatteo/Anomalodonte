@@ -8,22 +8,12 @@ from typing import Tuple
 import cv2
 import numpy as np
 import torch
+import torchvision
 from torch.utils.data import Dataset
 
 from conf import Conf
 from pre_processing import PreProcessingTr
-import torchvision
 from pre_processing import bgr2rgb
-from path import Path
-
-def get_anomaly_type(file_name):
-    file_name = Path(file_name).basename()
-    if 'good' in file_name:
-        return '000'
-    else:
-        x = file_name.split('_')[1]
-        a1, a2, a3 = int(x[1]), int(x[2]), int(x[3])
-        return f'{a1}{a2}{a3}'
 
 
 class SpalDS(Dataset):
@@ -64,15 +54,20 @@ class SpalDS(Dataset):
 
         all_paths = (self.cnf.ds_path / mode).files()
         for i, img_path in enumerate(all_paths):
-            anomaly_type = get_anomaly_type(img_path)
-            if anomaly_type.startswith('0') and '1' in anomaly_type:
-                continue
-            if not '_rect' in str(self.cnf.ds_path.basename()):
-                print(f'\r\t$> {i + 1} of {len(all_paths)}', end='')
+            print(f'\r\t$> {i + 1} of {len(all_paths)}', end='')
+
             x = cv2.imread(img_path)
             x = self.trs(x)
             self.imgs.append(x)
-            self.labels.append('good' if get_anomaly_type(img_path).startswith('0') else 'bad')
+
+            # the label of an image can be inferred from its filename:
+            # >> an image with label "good"
+            #    has a filename that starts with "good_"
+            # >> an image with label "bad"
+            #    has a filename that starts with "bad_"
+            label = img_path.basename().split('_')[0]
+            self.labels.append(label)
+
         print(f'\r\t$> done in {time.time() - t0:.0f} seconds')
 
 
@@ -117,7 +112,7 @@ class SpalDS(Dataset):
 def main():
     cnf = Conf(exp_name='capra')
     ds = SpalDS(cnf=cnf, mode='test')
-    print(len(ds), len([l for l in ds.labels if l=='good']), len([l for l in ds.labels if l=='bad']))
+    print(len(ds), len([l for l in ds.labels if l == 'good']), len([l for l in ds.labels if l == 'bad']))
 
 
 if __name__ == '__main__':

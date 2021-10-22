@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 # ---------------------
 
-import os
 
 from path import Path
 
@@ -13,7 +12,7 @@ def main():
     allfiles = []
     in_dir = DS_ROOT / 'BUONI' / '6mm' / 'CAM1_OK'
     for i, file in enumerate(in_dir.files()):
-        print(f'ln -s \'{file.abspath()}\' spal_fake/good_{i:04d}.png')
+        # print(f'ln -s \'{file.abspath()}\' spal_fake/good_{i:04d}.png')
         allfiles.append(file.basename())
 
     bad_dict = {}
@@ -27,6 +26,8 @@ def main():
                 bad_dict[k] = [file.split('/')[-3]]
 
     counter = 0
+    cc = 0
+    dup_fider = []
     for d in in_dir.dirs():
         for file in (d / 'CAM1').files():
             k = str(file.basename())
@@ -39,8 +40,14 @@ def main():
                 bad_str = file.split('/')[-3]
 
             bad_str = f'{1 if "1" in bad_str else 0}{1 if "s" in bad_str else 0}{1 if "2" in bad_str else 0}'
-            print(f'ln -s \'{file.abspath()}\' spal_fake/bad_t{bad_str}_{counter:04d}.png')
+            # print(f'ln -s \'{file.abspath()}\' spal_fake/bad_t{bad_str}_{counter:04d}.png')
             counter += 1
+            if bad_str[0] == '1':
+                cc += 1
+
+            if k in dup_fider:
+                print(f'rm bad_t{bad_str}_{counter:04d}.png')
+            dup_fider.append(k)
 
 
 if __name__ == '__main__':

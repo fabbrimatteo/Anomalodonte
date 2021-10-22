@@ -32,8 +32,8 @@ def main(img, perc):
     cx, cy = bck.shape[1] // 2, bck.shape[0] // 2
     barlen = max(int(round((w - barh) * perc)), (w-barh)//8)
 
-    c = int(round(127 * 0.5 - perc * 127 * 0.5))
-    c = np.array([[[c, int(round(255 * (90 / 100))), int(round(255 * (64 / 100)))]]], dtype=np.uint8)
+    c = int(round(124 * 0.5 - perc * 124 * 0.5))
+    c = np.array([[[c, int(round(255 * (78 / 100))), int(round(255 * (84 / 100)))]]], dtype=np.uint8)
     c = cv2.cvtColor(c, cv2.COLOR_HSV2BGR)
     c = tuple([int(i) for i in c[0, 0]])
 
