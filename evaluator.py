@@ -34,14 +34,14 @@ class Evaluator(object):
         if self.test_loader is None:
             test_set = SpalDS(cnf=self.cnf, mode='test')
             self.test_loader = DataLoader(
-                dataset=test_set, batch_size=1, num_workers=0,
+                dataset=test_set, batch_size=8, num_workers=0,
                 worker_init_fn=test_set.wif_test, shuffle=False,
                 pin_memory=False,
             )
 
 
     def __get_anomaly_score(self, code_pred, code_true, y_pred, y_true):
-        # type: (torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor) -> float
+        # type: (torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor) -> torch.Tensor
         """
         Returns the anomaly score based on the error function
         specified in the configuration file.
@@ -57,12 +57,14 @@ class Evaluator(object):
         :param code_true: target code -> e(x)
         :param y_pred: reconstructed image -> d(e(x))
         :param y_true: input image / target image -> x
-        :return: anomaly score
+        :return: anomaly score -> torch.Tensor with shape (batch_size,)
         """
         anomaly_score = 0
 
         if self.cnf.rec_error_fn == 'CODE_MSE_LOSS':
-            anomaly_score = nn.MSELoss()(code_pred, code_true).item()
+            x = nn.MSELoss(reduction='none')(code_pred, code_true)
+            anomaly_score = x.mean((1, 2, 3))
+            # anomaly_score = nn.MSELoss()(code_pred, code_true).item()
 
         elif self.cnf.rec_error_fn == 'MSE_LOSS':
             anomaly_score = nn.MSELoss()(y_pred, y_true).item()
@@ -73,29 +75,38 @@ class Evaluator(object):
         return anomaly_score
 
 
+    def __get_scores_of_batch(self, sample_batch):
+        x, y_true, label = sample_batch
+        x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
+
+        code_true = self.model.encode(x)
+        y_pred = self.model.decode(code_true)
+        code_pred = self.model.encode(y_pred)
+
+        return self.__get_anomaly_score(
+            code_pred, code_true, y_pred, y_true
+        )
+
+
     def get_stats(self):
         # type: () -> Tuple[Dict[str, Dict[str, float]], torch.Tensor]
 
-        stats_dict = {}
+        # bild `score_dict`, that is a disctionary with 2 keys:
+        # >> "good": list of anomaly scores -> one for each "good" sample
+        # >> "bad": list of anomaly scores -> one for each "bad" sample
         score_dict = {'good': [], 'bad': []}
         for i, sample in enumerate(self.test_loader):
-            x, y_true, label = sample
-            x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
-            label = label[0]
+            labels = sample[-1]
+            anomaly_scores = self.__get_scores_of_batch(sample)
+            batch_size = anomaly_scores.shape[0]
+            for i in range(batch_size):
+                score_dict[labels[i]].append(anomaly_scores[i].item())
 
-            code_true = self.model.encode(x)
-            y_pred = self.model.decode(code_true)
-            code_pred = self.model.encode(y_pred)
-
-            anomaly_score = self.__get_anomaly_score(
-                code_pred, code_true, y_pred, y_true
-            )
-
-            score_dict[label].append(anomaly_score)
-
+        # build `stats_dict`, that contains the statistics
+        # relating to the distribution of the anomaly scores
+        # of the "good" and "bad" test samples
+        stats_dict = {}
         for key in ['good', 'bad']:
-            # compute the statistics relating to the distribution of the
-            # anomaly scores of the "good" and "bad" test samples
             mean = np.mean(score_dict[key])
             std = np.std(score_dict[key])
             min_value = np.min(score_dict[key])
@@ -135,7 +146,7 @@ class Evaluator(object):
             [score_dict['good'], score_dict['bad']], labels=['good', 'bad'],
             showfliers=True, medianprops={'color': '#e74c3c'}
         )
-        plt.ylim(0, 0.035)
+        # plt.ylim(0, 0.035)
 
         boxplot = utils.pyplot_to_tensor(fig)
         plt.close(fig)
@@ -153,37 +164,48 @@ class Evaluator(object):
         score = {'all': 0, 'good': 0, 'bad': 0}
         counter = {'all': 0, 'good': 0, 'bad': 0}
         for i, sample in enumerate(self.test_loader):
-            x, y_true, label_true = sample
+            labels_true = sample[-1]
+            anomaly_scores = self.__get_scores_of_batch(sample)
 
-            x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
-            label_true = label_true[0]
+            batch_size = anomaly_scores.shape[0]
+            for i in range(batch_size):
+                label_true = labels_true[i]
+                anomaly_score = anomaly_scores[i].item()
+                label_pred = 'good' if anomaly_score < anomaly_th else 'bad'
 
-            code_true = self.model.encode(x)
-            y_pred = self.model.decode(code_true)
-            code_pred = self.model.encode(y_pred)
-            anomaly_score = self.__get_anomaly_score(code_pred, code_true, y_pred, y_true)
-
-            label_pred = 'good' if anomaly_score < anomaly_th else 'bad'
-
-            counter['all'] += 1
-            counter[label_true] += 1
-            if label_pred == label_true:
-                score['all'] += 1
-                score[label_true] += 1
+                counter['all'] += 1
+                counter[label_true] += 1
+                if label_pred == label_true:
+                    score['all'] += 1
+                    score[label_true] += 1
 
         acc_dict = {
-            'accuracy': score['all'] / counter['all'],
-            'accuracy_good': score['good'] / counter['good'],
-            'accuracy_bad': score['bad'] / counter['bad']
+            'all': score['all'] / counter['all'],
+            'good': score['good'] / counter['good'],
+            'bad': score['bad'] / counter['bad']
         }
         return acc_dict
 
 
-if __name__ == '__main__':
-    cnf =Conf(exp_name='magalli')
-    eval = Evaluator(cnf=cnf)
-    stats_dict, boxplot = eval.get_stats()
-    a = eval.get_accuracy(stats_dict=stats_dict)
+def main(exp_name):
     import torchvision
-    torchvision.utils.save_image(boxplot, (cnf.exp_log_path / 'boxplot.png'))
-    print(a)
+
+    cnf = Conf(exp_name=exp_name)
+
+    evaluator = Evaluator(cnf=cnf)
+    stats_dict, boxplot = evaluator.get_stats()
+    accuracy_dict = evaluator.get_accuracy(stats_dict=stats_dict)
+
+    out_path = cnf.exp_log_path / 'boxplot.png'
+    torchvision.utils.save_image(boxplot, out_path)
+
+    print(f'EXP: `{exp_name}`')
+    print(f'------------------------------')
+    print(f'>> accuracy (good): {100 * accuracy_dict["good"]:.2f}%')
+    print(f'>> accuracy (bad) : {100 * accuracy_dict["bad"]:.2f}%')
+    print(f'------------------------------')
+    print(f'>> accuracy (all) : {100 * accuracy_dict["all"]:.2f}%')
+
+
+if __name__ == '__main__':
+    main(exp_name='p1_rect_nonoise')

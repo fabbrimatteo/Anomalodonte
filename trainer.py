@@ -4,14 +4,12 @@
 from time import time
 
 import numpy as np
-
-# this MUST be imported before `import torch`
-from torch.utils.tensorboard import SummaryWriter
-
 import torch
 import torchvision as tv
 from torch import optim
 from torch.utils.data import DataLoader
+# this MUST be imported before `import torch`
+from torch.utils.tensorboard import SummaryWriter
 
 from conf import Conf
 from dataset.spal_fake_ds import SpalDS
@@ -84,7 +82,8 @@ class Trainer(object):
             self.progress_bar.current_epoch = self.epoch
             self.model.load_state_dict(ck['model'])
             self.optimizer.load_state_dict(ck['optimizer'])
-            self.best_test_accuracy = self.best_test_accuracy
+            self.patience = ck['patience']
+            self.best_test_accuracy = ck['best_test_accuracy']
 
 
     def save_ck(self):
@@ -95,7 +94,8 @@ class Trainer(object):
             'epoch': self.epoch,
             'model': self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
-            'best_test_loss': self.best_test_accuracy
+            'best_test_accuracy': self.best_test_accuracy,
+            'patience': self.patience
         }
         torch.save(ck, self.log_path / 'training.ck')
 
@@ -147,10 +147,13 @@ class Trainer(object):
         self.model.eval()
 
         t = time()
-        evaluator = Evaluator(model=self.model, cnf=self.cnf)
+        evaluator = Evaluator(
+            model=self.model, cnf=self.cnf,
+            test_loader=self.test_loader
+        )
         stats_dict, boxplot = evaluator.get_stats()
         self.sw.add_image(tag=f'boxplot', img_tensor=boxplot, global_step=self.epoch)
-        accuracy = evaluator.get_accuracy(stats_dict=stats_dict)['accuracy']
+        accuracy = evaluator.get_accuracy(stats_dict=stats_dict)['all']
 
         test_losses = []
         for step, sample in enumerate(self.test_loader):

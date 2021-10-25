@@ -1,12 +1,7 @@
-import random
-from time import time
 from typing import Tuple
 
 import cv2
 import numpy as np
-from path import Path
-
-from pre_processing import CropThenResize
 
 
 class SiftAligner(object):
@@ -81,83 +76,3 @@ class SiftAligner(object):
             aligned_img = img
 
         return success, aligned_img
-
-
-def realign_and_cut(in_dir, out_dir):
-    in_dir = Path(in_dir)
-
-    out_dir = Path(out_dir)
-    out_dir.mkdir_p()
-    (out_dir / 'train').mkdir_p()
-    (out_dir / 'test').mkdir_p()
-
-    target = cv2.imread('debug/debug_img_00.png')
-
-    sift_aligner = SiftAligner(target_img=target)
-
-    tr = CropThenResize(
-        resized_h=256, resized_w=256, crop_x_min=812,
-        crop_y_min=660, crop_side=315
-    )
-
-    all_files = list((in_dir / 'test').files())
-    all_files += list((in_dir / 'train').files())
-    random.shuffle(all_files)
-
-    for i, img_path in enumerate(all_files):
-        if len(out_dir.files(str(img_path.basename()))) == 0:
-            t0 = time()
-            img = cv2.imread(img_path)
-            # _, aligned_img = sift_aligner.align(img)
-
-            mode = img_path.parent.basename()
-            name = img_path.basename()
-            print('WRITE', out_dir / mode / name, f'{time() - t0:.2f}s')
-            cv2.imwrite(out_dir / mode / name, img)
-        else:
-            mode = img_path.parent.basename()
-            name = img_path.basename()
-            print('SKIP', out_dir / mode / name)
-
-
-def cut(in_dir, out_dir):
-    in_dir = Path(in_dir)
-
-    out_dir = Path(out_dir)
-    out_dir.mkdir_p()
-    (out_dir / 'train').mkdir_p()
-    (out_dir / 'test').mkdir_p()
-
-    target = cv2.imread('debug/debug_img_00.png')
-
-    sift_aligner = SiftAligner(target_img=target)
-
-    tr = CropThenResize(
-        resized_h=256, resized_w=256, crop_x_min=812,
-        crop_y_min=660, crop_side=315
-    )
-
-    all_files = list((in_dir / 'test').files())
-    all_files += list((in_dir / 'train').files())
-    random.shuffle(all_files)
-
-    for i, img_path in enumerate(all_files):
-        if len(out_dir.files(str(img_path.basename()))) == 0:
-            t0 = time()
-            img = cv2.imread(img_path)
-            mode = img_path.parent.basename()
-            name = img_path.basename()
-            print('WRITE', out_dir / mode / name, f'{time() - t0:.2f}s')
-            cv2.imwrite(out_dir / mode / name, tr(img))
-        else:
-            mode = img_path.parent.basename()
-            name = img_path.basename()
-            print('SKIP', out_dir / mode / name)
-
-
-if __name__ == '__main__':
-    DS_ROOT = Path('/nas/softechict-nas-3/rgasparini/datasets/spal/data_cavi')
-    cut(
-        in_dir='/nas/softechict-nas-3/matteo/Datasets/Spal/cables_6mm',
-        out_dir='/nas/softechict-nas-3/matteo/Datasets/Spal/cables_6mm_p1'
-    )

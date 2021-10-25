@@ -1,6 +1,6 @@
 # training params
 LR: 0.0001
-EPOCHS: 256
+EPOCHS: 128
 MAX_PATIENCE: 64
 
 # dataloader params
@@ -16,7 +16,7 @@ REC_ERROR_FN: 'CODE_MSE_LOSS'
 CODE_CHANNELS: 3
 CODE_H: 4
 CODE_W: 4
-CODE_NOISE: 0.25
+CODE_NOISE: 0.0
 
 # pre-processing params
 RESIZED_H: 256

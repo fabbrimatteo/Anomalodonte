@@ -1,6 +1,6 @@
 # training params
 LR: 0.0001
-EPOCHS: 256
+EPOCHS: 128
 MAX_PATIENCE: 64
 
 # dataloader params
