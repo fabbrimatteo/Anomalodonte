@@ -79,10 +79,23 @@ class PreProcessingTr(object):
         :param crop_y_min: y coordinate of the top left corner of the crop square
         :param crop_side: side (in pixels) of the crop square
         """
-        self.trs = torchvision.transforms.Compose([
-            torchvision.transforms.ToTensor(), bgr2rgb,
-            CropThenResize(resized_h, resized_w, crop_x_min, crop_y_min, crop_side)
-        ])
+
+        __trs = [torchvision.transforms.ToTensor(), bgr2rgb]
+
+        # if `c1` and `c2`, you don't need to crop and resize the image
+        # otherwise, add the `CropThenResize` transformation to the list
+        c1 = crop_x_min == 0 and crop_y_min == 0
+        c2 = crop_side == resized_h and crop_side == resized_w
+        need_to_crop_and_resize = not (c1 and c2)
+        if need_to_crop_and_resize:
+            cr = CropThenResize(
+                resized_h, resized_w,
+                crop_x_min, crop_y_min,
+                crop_side
+            )
+            __trs.append(cr)
+
+        self.trs = torchvision.transforms.Compose(__trs)
 
 
     def apply(self, img):

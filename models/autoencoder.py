@@ -215,8 +215,16 @@ class SimpleAutoencoder(BaseModel):
         return code_error
 
 
-    def get_code_anomaly_perc(self, x):
-        # type: (torch.Tensor) -> ...
+    def get_code_anomaly_perc(self, x, stats=None):
+        # type: (torch.Tensor, Optional[Dict]) -> float
+
+        if stats is not None:
+            self.stats = stats
+        assert self.stats is not None, \
+            'you need to build the stats dictionary for this model ' \
+            'before using the `get_code_anomaly_perc` method, ' \
+            'or you can pass the stats dictionary as input'
+
         anomaly_score = self.get_code_anomaly_score(x).item()
         if anomaly_score < self.stats['good']['q0.75']:
             anomaly_perc = 0

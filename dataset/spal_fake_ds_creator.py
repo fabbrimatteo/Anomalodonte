@@ -2,53 +2,67 @@
 # ---------------------
 
 
+import random
+
 from path import Path
 
 
 DS_ROOT = Path('/nas/softechict-nas-3/rgasparini/datasets/spal/data_cavi')
 
 
-def main():
-    allfiles = []
-    in_dir = DS_ROOT / 'BUONI' / '6mm' / 'CAM1_OK'
-    for i, file in enumerate(in_dir.files()):
-        # print(f'ln -s \'{file.abspath()}\' spal_fake/good_{i:04d}.png')
-        allfiles.append(file.basename())
+def main(in_dir_path, out_dir_path):
+    in_dir_path = Path(in_dir_path)
+    assert in_dir_path.exists(), \
+        f'directory `{in_dir_path}` does not exist'
 
+    out_dir_path = Path(out_dir_path)
+    out_dir_path.mkdir_p()
+
+    train_path = out_dir_path / 'train'
+    train_path.mkdir_p()
+    test_path = out_dir_path / 'test'
+    test_path.mkdir_p()
+
+    # analyze bad images and create a dictionary
+    # containing file path and error(s) type
     bad_dict = {}
-    in_dir = DS_ROOT / 'SCARTI' / '6mm'
-    for d in in_dir.dirs():
+    in_dir_6mm = in_dir_path / 'SCARTI' / '6mm'
+    for d in in_dir_6mm.dirs():
+        error_type = d.basename()
         for file in (d / 'CAM1').files():
             k = str(file.basename())
-            if k in bad_dict:
-                bad_dict[k].append(file.split('/')[-3])
-            else:
-                bad_dict[k] = [file.split('/')[-3]]
+            if not k in bad_dict:
+                bad_dict[k] = {'path': file, 'errors': []}
+            bad_dict[k]['errors'].append(str(error_type))
 
-    counter = 0
-    cc = 0
-    dup_fider = []
-    for d in in_dir.dirs():
-        for file in (d / 'CAM1').files():
-            k = str(file.basename())
+    # create sym-links of bad images
+    for i, k in enumerate(bad_dict):
+        error_list = bad_dict[k]['errors']
+        error_type = ''
+        for error in ['P1', 'S', 'P2']:
+            error_type += '1' if error in error_list else '0'
 
-            if k in bad_dict:
-                bad_str = ''
-                for c in str(bad_dict[k]):
-                    bad_str += c.lower() if c in ['1', '2', 'S'] else ''
-            else:
-                bad_str = file.split('/')[-3]
+        new_name = test_path / f'bad_{error_type}_{i:04d}.png'
+        print(f'ln -s \'{bad_dict[k]["path"]}\' \'{new_name.abspath()}\'')
 
-            bad_str = f'{1 if "1" in bad_str else 0}{1 if "s" in bad_str else 0}{1 if "2" in bad_str else 0}'
-            # print(f'ln -s \'{file.abspath()}\' spal_fake/bad_t{bad_str}_{counter:04d}.png')
-            counter += 1
-            if bad_str[0] == '1':
-                cc += 1
+    # number of bad images
+    n_bad = len(bad_dict)
 
-            if k in dup_fider:
-                print(f'rm bad_t{bad_str}_{counter:04d}.png')
-            dup_fider.append(k)
+    # split good images in 2 sets -> train and test
+    in_dir_6mm = DS_ROOT / 'BUONI' / '6mm' / 'CAM1_OK'
+    allfiles = list(in_dir_6mm.files())
+    random.Random(42).shuffle(allfiles)
+    test_files = allfiles[:n_bad]
+    train_files = allfiles[n_bad:]
+
+    # create sim-links of good images
+    for i, file in enumerate(test_files):
+        new_name = test_path / f'good_{i:04d}.png'
+        print(f'ln -s \'{file.abspath()}\' \'{new_name.abspath()}\'')
+    for i, file in enumerate(train_files):
+        new_name = train_path / f'good_{len(test_files) + i:04d}.png'
+        print(f'ln -s \'{file.abspath()}\' \'{new_name.abspath()}\'')
 
 
 if __name__ == '__main__':
-    main()
+    main(in_dir_path=DS_ROOT, out_dir_path='cavallo')

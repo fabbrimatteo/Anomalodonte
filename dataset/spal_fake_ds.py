@@ -29,9 +29,12 @@ class SpalDS(Dataset):
         # type: (Conf, str) -> None
         """
         :param cnf: configuration object
-        :param ds_len: dataset length
+        :param mode: working mode -> must be one of {"train", "test"}
         """
         self.cnf = cnf
+
+        assert mode in ['train', 'test'], \
+            'mode must be one of {"train", "test"}'
         self.mode = mode
 
         self.imgs = []
@@ -39,20 +42,24 @@ class SpalDS(Dataset):
         self.avg_img = None
 
         # pre processing traqnsformations
-        if '_rect' in self.cnf.ds_path:
-            self.trs = torchvision.transforms.Compose([
-                torchvision.transforms.ToTensor(), bgr2rgb,
-            ])
-        else:
-            self.trs = PreProcessingTr(
-                resized_h=256, resized_w=256,
-                crop_x_min=812, crop_y_min=660, crop_side=315
-            )
+        self.trs = PreProcessingTr(
+            resized_h=cnf.resized_h, resized_w=cnf.resized_w,
+            crop_x_min=cnf.crop_x_min, crop_y_min=cnf.crop_y_min,
+            crop_side=cnf.crop_side
+        )
 
         t0 = time.time()
         print(f'$> loading images into memory: please wait...')
 
         all_paths = (self.cnf.ds_path / mode).files()
+
+        # TODO: remove this
+        if mode == 'test':
+            all_paths.sort()
+            b = [b for b in all_paths if b.basename().startswith('bad')]
+            g = [g for g in all_paths if g.basename().startswith('good')]
+            all_paths = b + g[:len(b)]
+
         for i, img_path in enumerate(all_paths):
             print(f'\r\t$> {i + 1} of {len(all_paths)}', end='')
 
@@ -110,9 +117,11 @@ class SpalDS(Dataset):
 
 
 def main():
-    cnf = Conf(exp_name='capra')
-    ds = SpalDS(cnf=cnf, mode='test')
-    print(len(ds), len([l for l in ds.labels if l == 'good']), len([l for l in ds.labels if l == 'bad']))
+    cnf = Conf(exp_name='p1')
+    ds = SpalDS(cnf=cnf, mode='train')
+    for i in range(10):
+        x, y, label = ds[i]
+        print(x.shape, y.shape, label)
 
 
 if __name__ == '__main__':

@@ -1,1 +1,1 @@
-from dataset.dummy_ds import DummyDS
+from dataset.spal_fake_ds import SpalDS

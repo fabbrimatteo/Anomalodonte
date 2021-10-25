@@ -4,18 +4,21 @@
 from time import time
 
 import numpy as np
+
+# this MUST be imported before `import torch`
+from torch.utils.tensorboard import SummaryWriter
+
 import torch
 import torchvision as tv
 from torch import optim
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
 
 from conf import Conf
 from dataset.spal_fake_ds import SpalDS
+from evaluator import Evaluator
 from models.autoencoder import SimpleAutoencoder
 from models.dd_loss import DDLoss
 from progress_bar import ProgressBar
-from evaluator import Evaluator
 
 
 class Trainer(object):
@@ -147,7 +150,7 @@ class Trainer(object):
         evaluator = Evaluator(model=self.model, cnf=self.cnf)
         stats_dict, boxplot = evaluator.get_stats()
         self.sw.add_image(tag=f'boxplot', img_tensor=boxplot, global_step=self.epoch)
-        accuracy = evaluator.get_accuracy(stats_dict=stats_dict)
+        accuracy = evaluator.get_accuracy(stats_dict=stats_dict)['accuracy']
 
         test_losses = []
         for step, sample in enumerate(self.test_loader):
