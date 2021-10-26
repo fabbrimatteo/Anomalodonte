@@ -1,1 +1,19 @@
-/dataset/spal_fake_rect/test/
+### Pycharm stuffs
+.idea/
+*__pycache__/
+venv/
+
+### Tensorboard logs
+log/*/events.out.tfevents*
+
+### Pytorch model weights
+*.pth
+*.ck
+
+### images
+*.jpg
+*.jpeg
+*.png
+*.tif
+*.tiff
+

@@ -6,14 +6,13 @@ import time
 from typing import Tuple
 
 import cv2
+import imgaug
 import numpy as np
 import torch
-import torchvision
 from torch.utils.data import Dataset
 
 from conf import Conf
 from pre_processing import PreProcessingTr
-from pre_processing import bgr2rgb
 
 
 class SpalDS(Dataset):
@@ -101,6 +100,7 @@ class SpalDS(Dataset):
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
+        imgaug.seed(seed)
 
 
     @staticmethod
@@ -114,6 +114,7 @@ class SpalDS(Dataset):
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
+        imgaug.seed(seed)
 
 
 def main():

@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # ---------------------
 
+# this MUST be imported before `import torch`
+from torch.utils.tensorboard import SummaryWriter
+
 from time import time
 
 import numpy as np
@@ -8,8 +11,6 @@ import torch
 import torchvision as tv
 from torch import optim
 from torch.utils.data import DataLoader
-# this MUST be imported before `import torch`
-from torch.utils.tensorboard import SummaryWriter
 
 from conf import Conf
 from dataset.spal_fake_ds import SpalDS
