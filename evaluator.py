@@ -90,6 +90,15 @@ class Evaluator(object):
 
     def get_stats(self):
         # type: () -> Tuple[Dict[str, Dict[str, float]], torch.Tensor]
+        """
+        :return: (stats_dict, boxplot) ->
+        # >> stats_dict: a dictionary that contains the statistics
+        #    relating to the distribution of the anomaly scores
+        #    of the "good" and "bad" test samples
+        # >> boxplot: boxplot with 2 boxes representing
+        #    the distribution of the anomaly scores
+        #    of the "good" and "bad" test samples
+        """
 
         # bild `score_dict`, that is a disctionary with 2 keys:
         # >> "good": list of anomaly scores -> one for each "good" sample
@@ -127,26 +136,26 @@ class Evaluator(object):
                 'q1': q1, 'q2': q2, 'q3': q3,
             }
 
-        fig = plt.figure()
-
-        # draw dashed grey (#ecf0f1) lines for each quarile
-        # (for both the "good" and the "bad" boxplot)
-        for k in ['good', 'bad']:
-            for q in ['q1', 'q2', 'q3']:
-                x = stats_dict[k][q]
-                plt.hlines(x, 0, 3, linestyles='--', colors='#ecf0f1')
+        fig = plt.figure(figsize=(8, 4), dpi=128)
 
         # draw a solid red line for the anomaly threshold,
         # i.e. the upper whisker of the "good" boxplot
         anomaly_th = stats_dict['good']['upper_whisker']
-        plt.hlines(anomaly_th, 0, 3, colors='#1abc9c')
+        plt.vlines(anomaly_th, 0, 3, colors='#1abc9c', linewidth=2)
 
         # draw the actual boxplot with the 2 boxes: "good" and "bad"
         plt.boxplot(
-            [score_dict['good'], score_dict['bad']], labels=['good', 'bad'],
-            showfliers=True, medianprops={'color': '#e74c3c'}
+            [score_dict['bad'], score_dict['good']], labels=['bad', 'good'],
+            showfliers=True, medianprops={'color': '#9b59b6'}, vert=False
         )
-        # plt.ylim(0, 0.035)
+        plt.xlim(0, stats_dict['bad']['upper_whisker'] * 1.1)
+        for i in [1, 2]:
+            plt.hlines(
+                i, 0, 10, linestyles='--', linewidth=0.5,
+                colors='#95a5a6'
+            )
+        plt.ylim(0.5, 2.5)
+
 
         boxplot = utils.pyplot_to_tensor(fig)
         plt.close(fig)
@@ -154,6 +163,15 @@ class Evaluator(object):
 
 
     def get_accuracy(self, stats_dict=None):
+        # type: (Dict[str, float]) -> Dict[str, float]
+        """
+        Get accuracy of the model on the test set.
+        :param stats_dict:
+        :return: accuracy dictionary with keys:
+            >> 'good': accuracy in detecting "good" samples
+            >> 'bad': accuracy in detecting "bad" samples
+            >> 'all': accuracy in detecting both "good" and "bad" samples
+        """
 
         if stats_dict is None:
             stats_dict, _ = self.get_stats()
@@ -208,4 +226,4 @@ def main(exp_name):
 
 
 if __name__ == '__main__':
-    main(exp_name='p1_rect_nonoise')
+    main(exp_name='p1_rect_small')
