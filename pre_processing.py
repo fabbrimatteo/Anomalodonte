@@ -18,9 +18,19 @@ def bgr2rgb(img):
     """
     Colorspace conversion: BGR -> RGB.
     :param img: image (tensor or array) in BGR format
+        >> if `img` is a tensor, the order must be (C,H,W)
+        >> if `img` is an array, the order must be (H,W,C)
     :return: image (tensor or array) in RGB format
     """
-    return img[[2, 1, 0]]
+    if type(img) is np.ndarray:
+        return img[:, :, [2, 1, 0]]
+    elif type(img) is torch.Tensor:
+        return img[[2, 1, 0]]
+    else:
+        raise TypeError(
+            f'image type must be {np.ndarray} '
+            f'or {torch.Tensor}, not `{type(img)}`'
+        )
 
 
 class CropThenResize(object):
@@ -70,17 +80,23 @@ class CropThenResize(object):
 
 class PreProcessingTr(object):
 
-    def __init__(self, resized_h, resized_w, crop_x_min, crop_y_min, crop_side):
-        # type: (int, int, int, int, int) -> None
+    def __init__(self, resized_h, resized_w, crop_x_min, crop_y_min, crop_side, to_tensor=False):
+        # type: (int, int, int, int, int, bool) -> None
         """
         :param resized_h: image height after resizing, but before cutting
         :param resized_w: image width after resizing, but before cutting
-        :param crop_x_min: x coordinate of the top left corner of the crop square
-        :param crop_y_min: y coordinate of the top left corner of the crop square
+        :param crop_x_min: x coord of the top left corner of the crop square
+        :param crop_y_min: y coord of the top left corner of the crop square
         :param crop_side: side (in pixels) of the crop square
+        :param to_tensor: if True, the image is converted into torch.Tensor
+            with shape (C,H,W) and values in [0,1], otherwise it remains a
+            numpy array with shape (H,W,C) and values in [0,255]
         """
 
-        __trs = [torchvision.transforms.ToTensor(), bgr2rgb]
+        if to_tensor:
+            __trs = [torchvision.transforms.ToTensor(), bgr2rgb]
+        else:
+            __trs = [bgr2rgb]
 
         # if `c1` and `c2`, you don't need to crop and resize the image
         # otherwise, add the `CropThenResize` transformation to the list
@@ -99,24 +115,22 @@ class PreProcessingTr(object):
 
 
     def apply(self, img):
-        # type: (np.ndarray) -> torch.Tensor
+        # type: (np.ndarray) -> ArrayOrTensor
         return self.trs(img)
 
 
     def __call__(self, img):
-        # type: (np.ndarray) -> torch.Tensor
+        # type: (np.ndarray) -> ArrayOrTensor
         return self.apply(img)
 
 
 def __debug():
     from path import Path
-    import post_processing
 
     img = cv2.imread(Path(__file__).parent / 'debug' / 'debug_img_00.png')
     print(f'$> before -> type: {type(img)}, shape: {tuple(img.shape)}')
     img = PreProcessingTr(resized_h=256, resized_w=256, crop_x_min=812, crop_y_min=660, crop_side=315)(img)
     print(f'$> after -> type: {type(img)}, shape: {tuple(img.shape)}')
-    img = post_processing.tensor2img(img)
     cv2.imshow('', img)
     cv2.waitKey()
 

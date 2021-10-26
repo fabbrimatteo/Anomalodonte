@@ -7,8 +7,7 @@ from datetime import datetime
 
 class ProgressBar(object):
     """
-    Utility class for the management of progress bars showing training progress in the form
-    "[<date>] Epoch <epoch_number>.<step_number> │<progres_bar>│ <completion_percentage>"
+    Utility class for showing training progress bars.
     """
 
 

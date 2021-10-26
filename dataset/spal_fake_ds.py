@@ -13,6 +13,7 @@ from torch.utils.data import Dataset
 
 from conf import Conf
 from pre_processing import PreProcessingTr
+import torchvision
 
 
 class SpalDS(Dataset):
@@ -40,12 +41,17 @@ class SpalDS(Dataset):
         self.labels = []
         self.avg_img = None
 
-        # pre processing traqnsformations
+        # ---- pre processing transformations
+        # (1) BGR to RGB conversion
+        # (2) cut (optional)
+        # (3) resize (optional)
         self.trs = PreProcessingTr(
             resized_h=cnf.resized_h, resized_w=cnf.resized_w,
             crop_x_min=cnf.crop_x_min, crop_y_min=cnf.crop_y_min,
-            crop_side=cnf.crop_side
+            crop_side=cnf.crop_side, to_tensor=False
         )
+        # (4) from array (H,W,C) in [0,255] to tensor (C,H,W) in [0,1]
+        self.to_tensor = torchvision.transforms.ToTensor()
 
         t0 = time.time()
         print(f'$> loading images into memory: please wait...')
@@ -84,9 +90,18 @@ class SpalDS(Dataset):
 
     def __getitem__(self, i):
         # type: (int) -> Tuple[torch.Tensor, torch.Tensor, str]
-        x = self.imgs[i]
+
+        # `img` -> shape (H,W,C) and values in [0,255] (uint8)
+        img = self.imgs[i]
+
+        # string ("good" or "bad")
         label = self.labels[i]
-        return x, x, label
+
+        # `x` & `y` -> shape (C,H,W) and values in [0,1] (float)
+        x = self.to_tensor(img)
+        y = x
+
+        return x, y, label
 
 
     @staticmethod
@@ -119,9 +134,10 @@ class SpalDS(Dataset):
 
 def main():
     cnf = Conf(exp_name='p1')
-    ds = SpalDS(cnf=cnf, mode='train')
+    ds = SpalDS(cnf=cnf, mode='test')
     for i in range(10):
         x, y, label = ds[i]
+        print(x.min(), x.max())
         print(x.shape, y.shape, label)
 
 
