@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+# ---------------------
+
 from typing import Tuple
 
 import cv2
@@ -29,6 +32,19 @@ class SiftAligner(object):
 
     def align(self, img):
         # type: (np.ndarray) -> Tuple[bool, np.ndarray]
+        """
+        Align input image `img` w.r.t. the target image.
+
+        :param img: image you want to align w.r.t. the target image
+        :return: tuple of 2 elements (success, aligned_img)
+            >> `success` is a boolean flag that is `True` if the aligment
+               was successful i.e. enough sift matches have been found
+               to calculate homographic transformation; otherwise
+               `success` is false
+            >> `aligned_img` is the aligned version of the imput image
+               w.r.t. the target image if `success` is True; if `success`
+               is False, `aligned_img` is a copy of the input image `img`
+        """
 
         # find the keypoints and descriptors with SIFT
         img_kpts, img_des = self.detector.detectAndCompute(img, None)
@@ -72,7 +88,8 @@ class SiftAligner(object):
             )
 
         else:
+            # not enough (good) matches were found to align the image
             success = False
-            aligned_img = img
+            aligned_img = img.copy()
 
         return success, aligned_img
