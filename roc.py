@@ -1,19 +1,20 @@
 from typing import Dict
 
 import numpy as np
-import sklearn
 from matplotlib import pyplot as plt
+import sklearn
 from sklearn import metrics
 
 
 def draw_boxplot(good_scores, bad_scores):
     plt.figure(figsize=(8, 4), dpi=128)
-
+    flierprops = dict(marker='o', markerfacecolor='green', markeredgecolor='none')
     # draw the actual boxplot with the 2 boxes: "good" and "bad"
     data = [bad_scores.tolist(), good_scores.tolist()]
     plt.boxplot(
-        data, labels=['bad', 'good'],
-        showfliers=True, medianprops={'color': '#9b59b6'}, vert=False
+        data,
+        showfliers=True, medianprops={'color': '#9b59b6'}, vert=False,
+        flierprops=flierprops
     )
     plt.xlim(0, bad_scores.max() * 1.1)
     for i in [1, 2]:
@@ -101,16 +102,16 @@ def plot_roc(anomaly_scores, labels_true):
         tpr = rates_dict['TPR']
         fpr = rates_dict['FPR']
 
-        # print(f'th={th:.2f} => '
-        #       f'TPR: {tpr * 100:.2f}%, '
-        #       f'FPR: {fpr * 100:.2f}%')
+        print(f'th={th:.2f} => '
+              f'TPR: {tpr * 100:.2f}%, '
+              f'FPR: {fpr * 100:.2f}%')
 
         fpr_list.append(fpr)
         tpr_list.append(tpr)
 
-    # auc = sklearn.metrics.auc(fpr_list, tpr_list)
-    # print(f'------')
-    # print(f'AUC: {auc * 100:.2f}%')
+    auc = sklearn.metrics.auc(fpr_list, tpr_list)
+    print(f'------')
+    print(f'AUC: {auc * 100:.2f}%')
 
     plt.figure(figsize=(5, 5))
     plt.grid(True, linestyle='dashed', color='#bdc3c7', linewidth=0.75)
@@ -122,6 +123,7 @@ def plot_roc(anomaly_scores, labels_true):
     plt.yticks(np.arange(0, 1.1, 0.2))
     plt.show()
 
+
 def debug():
     N_GOOD = 256
     N_BAD = 128
@@ -131,11 +133,11 @@ def debug():
     labels_true = np.array(labels_true)
 
     goods_scores = np.random.normal(2, 0.4, (N_GOOD,)).astype(float)
-    bads_scores = np.random.normal(3, 1.1, (N_BAD,)).astype(float)
+    bads_scores = np.random.normal(4, 1.1, (N_BAD,)).astype(float)
     anomaly_scores = np.concatenate([goods_scores, bads_scores], 0)
 
     draw_boxplot(goods_scores, bads_scores)
-    p
+    plot_roc(anomaly_scores, labels_true)
 
 
 if __name__ == '__main__':

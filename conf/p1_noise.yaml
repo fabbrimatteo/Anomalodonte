@@ -6,7 +6,7 @@ MAX_PATIENCE: 64
 # dataloader params
 N_WORKERS: 4
 BATCH_SIZE: 32
-DS_PATH: /nas/softechict-nas-3/matteo/Datasets/Spal/cables_6mm_p1_rect
+DS_PATH: /nas/softechict-nas-3/matteo/Datasets/Spal/cables_6mm_p1
 
 # loss params
 LOSS_FN: 'L1+MS_SSIM+VGG'
@@ -16,7 +16,7 @@ REC_ERROR_FN: 'CODE_MSE_LOSS'
 CODE_CHANNELS: 3
 CODE_H: 4
 CODE_W: 4
-CODE_NOISE: 0
+CODE_NOISE: 0.25
 
 # pre-processing params
 RESIZED_H: 256

@@ -12,9 +12,18 @@ class ResidualLayer(nn.Module):
         super(ResidualLayer, self).__init__()
         self.res_block = nn.Sequential(
             nn.SiLU(),
-            nn.Conv2d(in_channels, mid_channels, kernel_size=3, stride=1, padding=1, bias=False, padding_mode=padding_mode),
+
+            nn.Conv2d(
+                in_channels, mid_channels, kernel_size=3,
+                stride=1, padding=1, bias=False,
+                padding_mode=padding_mode
+            ),
             nn.SiLU(),
-            nn.Conv2d(mid_channels, out_channels, kernel_size=1, stride=1, bias=False)
+
+            nn.Conv2d(
+                mid_channels, out_channels,
+                kernel_size=1, stride=1, bias=False
+            )
         )
 
 

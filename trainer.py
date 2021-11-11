@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 from conf import Conf
 from dataset.spal_fake_ds import SpalDS
 from evaluator import Evaluator
-from models.autoencoder import SimpleAutoencoder
+from models.autoencoder4 import SimpleAutoencoder
 from models.dd_loss import DDLoss
 from progress_bar import ProgressBar
 

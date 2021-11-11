@@ -226,4 +226,4 @@ def main(exp_name):
 
 
 if __name__ == '__main__':
-    main(exp_name='p1_rect_small_quadris')
+    main(exp_name='p1_rect_small_blur')
