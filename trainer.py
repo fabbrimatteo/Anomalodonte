@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 from conf import Conf
 from dataset.spal_fake_ds import SpalDS
 from evaluator import Evaluator
-from models.autoencoder4 import SimpleAutoencoder
+from models.autoencoder3 import SimpleAutoencoder
 from models.dd_loss import DDLoss
 from progress_bar import ProgressBar
 
@@ -154,7 +154,7 @@ class Trainer(object):
         )
         stats_dict, boxplot = evaluator.get_stats()
         self.sw.add_image(tag=f'boxplot', img_tensor=boxplot, global_step=self.epoch)
-        accuracy = evaluator.get_accuracy(stats_dict=stats_dict)['all']
+        accuracy = evaluator.get_accuracy(boxplot_dict=stats_dict)['all']
 
         test_losses = []
         for step, sample in enumerate(self.test_loader):

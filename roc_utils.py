@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import sklearn
 from sklearn import metrics
-
+import utils
 
 def draw_boxplot(good_scores, bad_scores):
     plt.figure(figsize=(8, 4), dpi=128)
@@ -80,16 +80,17 @@ def get_ad_rates(anomaly_scores, anomaly_th, labels_true):
     fpr = fp / n_good
 
     rates_dict = {
-        'TPR': tpr,
-        'FPR': fpr,
-        'TNR': 1 - fpr,
-        'FNR': 1 - tpr,
+        'tpr': tpr,
+        'fpr': fpr,
+        'tnr': 1 - fpr,
+        'fnr': 1 - tpr,
+        'bal_acc': (tpr + (1 - fpr)) / 2
     }
 
     return rates_dict
 
 
-def plot_roc(anomaly_scores, labels_true):
+def get_roc_dict(anomaly_scores, labels_true):
     th_min = np.min(anomaly_scores)
     th_max = np.max(anomaly_scores)
     th_range = th_max - th_min
@@ -99,21 +100,29 @@ def plot_roc(anomaly_scores, labels_true):
     for th in np.arange(th_min, th_max, th_range / 32):
         rates_dict = get_ad_rates(anomaly_scores, th, labels_true)
 
-        tpr = rates_dict['TPR']
-        fpr = rates_dict['FPR']
-
-        print(f'th={th:.2f} => '
-              f'TPR: {tpr * 100:.2f}%, '
-              f'FPR: {fpr * 100:.2f}%')
+        tpr = rates_dict['tpr']
+        fpr = rates_dict['fpr']
 
         fpr_list.append(fpr)
         tpr_list.append(tpr)
 
-    auc = sklearn.metrics.auc(fpr_list, tpr_list)
-    print(f'------')
-    print(f'AUC: {auc * 100:.2f}%')
+    auroc = sklearn.metrics.auc(fpr_list, tpr_list)
 
-    plt.figure(figsize=(5, 5))
+    roc_dict = {
+        'tpr_list': tpr_list,
+        'fpr_list': fpr_list,
+        'auroc': auroc
+    }
+
+    return roc_dict
+
+
+def plt_rocplot(roc_dict):
+
+    fpr_list = roc_dict['fpr_list']
+    tpr_list = roc_dict['tpr_list']
+
+    fig = plt.figure(figsize=(5, 5))
     plt.grid(True, linestyle='dashed', color='#bdc3c7', linewidth=0.75)
     plt.plot((-0.1, 1.1), (-0.1, 1.1), '--', color='#34495e', linewidth=1)
     plt.plot(fpr_list, tpr_list, 'o-', color='#16a085')
@@ -121,7 +130,11 @@ def plot_roc(anomaly_scores, labels_true):
     plt.ylim(-0.1, 1.1)
     plt.xticks(np.arange(0, 1.1, 0.2))
     plt.yticks(np.arange(0, 1.1, 0.2))
-    plt.show()
+
+    img = utils.pyplot_to_numpy(fig)
+    plt.close(fig)
+
+    return img
 
 
 def debug():

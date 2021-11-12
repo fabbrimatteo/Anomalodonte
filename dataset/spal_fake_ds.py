@@ -133,11 +133,10 @@ class SpalDS(Dataset):
 
 
 def main():
-    cnf = Conf(exp_name='p1')
+    cnf = Conf(exp_name='a3')
     ds = SpalDS(cnf=cnf, mode='test')
-    for i in range(10):
+    for i in range(len(ds)):
         x, y, label = ds[i]
-        print(x.min(), x.max())
         print(x.shape, y.shape, label)
 
 

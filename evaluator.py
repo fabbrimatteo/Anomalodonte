@@ -1,9 +1,11 @@
 import matplotlib
 
+import roc_utils
+
 
 matplotlib.use('TkAgg')
 import numpy as np
-from models.autoencoder import SimpleAutoencoder
+from models.autoencoder3 import SimpleAutoencoder
 from torch import nn
 import torch
 from torch.utils.data import DataLoader
@@ -14,6 +16,8 @@ from matplotlib import pyplot as plt
 import utils
 import piq
 from typing import Tuple
+import roc_utils
+import boxplot_utils as bp_utils
 
 
 class Evaluator(object):
@@ -91,8 +95,8 @@ class Evaluator(object):
     def get_stats(self):
         # type: () -> Tuple[Dict[str, Dict[str, float]], torch.Tensor]
         """
-        :return: (stats_dict, boxplot) ->
-        # >> stats_dict: a dictionary that contains the statistics
+        :return: (boxplot_dict, boxplot) ->
+        # >> boxplot_dict: a dictionary that contains the statistics
         #    relating to the distribution of the anomaly scores
         #    of the "good" and "bad" test samples
         # >> boxplot: boxplot with 2 boxes representing
@@ -103,127 +107,58 @@ class Evaluator(object):
         # bild `score_dict`, that is a disctionary with 2 keys:
         # >> "good": list of anomaly scores -> one for each "good" sample
         # >> "bad": list of anomaly scores -> one for each "bad" sample
-        score_dict = {'good': [], 'bad': []}
+        # >> "all": list of anomaly scores -> one for each sample
+        # >> "labels_true": list of GT labels -> one for each sample
+
+        scores = []
+        labels_true = []
         for i, sample in enumerate(self.test_loader):
             labels = sample[-1]
             anomaly_scores = self.__get_scores_of_batch(sample)
             batch_size = anomaly_scores.shape[0]
             for i in range(batch_size):
-                score_dict[labels[i]].append(anomaly_scores[i].item())
+                scores.append(anomaly_scores[i].item())
+                labels_true.append(labels[i])
+        scores = np.array(scores)
+        labels_true = np.array(labels_true)
 
-        # build `stats_dict`, that contains the statistics
+        # build `boxplot_dict`, that contains the statistics
         # relating to the distribution of the anomaly scores
         # of the "good" and "bad" test samples
-        stats_dict = {}
-        for key in ['good', 'bad']:
-            mean = np.mean(score_dict[key])
-            std = np.std(score_dict[key])
-            min_value = np.min(score_dict[key])
-            max_value = np.max(score_dict[key])
-            q1 = np.quantile(score_dict[key], 0.25)
-            q2 = np.quantile(score_dict[key], 0.50)
-            q3 = np.quantile(score_dict[key], 0.75)
-            iqr = q3 - q1
-            lower_whisker = q1 - 1.5 * iqr
-            upper_whisker = q3 + 1.5 * iqr
+        boxplot_dict = bp_utils.get_boxplot_dict(scores, labels_true)
+        roc_dict = roc_utils.get_roc_dict(scores, labels_true)
+        scores_dict = {'scores': scores, 'labels_true': labels_true}
 
-            stats_dict[key] = {
-                'rec_error_fn': self.cnf.rec_error_fn,
-                'lower_whisker': lower_whisker,
-                'upper_whisker': upper_whisker,
-                'min': min_value, 'max': max_value,
-                'mean': mean, 'std': std,
-                'q1': q1, 'q2': q2, 'q3': q3,
-            }
+        anomaly_th = boxplot_dict['good']['upper_whisker']
+        sol_dict = roc_utils.get_ad_rates(scores, anomaly_th, labels_true)
 
-        fig = plt.figure(figsize=(8, 4), dpi=128)
-
-        # draw a solid red line for the anomaly threshold,
-        # i.e. the upper whisker of the "good" boxplot
-        anomaly_th = stats_dict['good']['upper_whisker']
-        plt.vlines(anomaly_th, 0, 3, colors='#1abc9c', linewidth=2)
-
-        # draw the actual boxplot with the 2 boxes: "good" and "bad"
-        plt.boxplot(
-            [score_dict['bad'], score_dict['good']], labels=['bad', 'good'],
-            showfliers=True, medianprops={'color': '#9b59b6'}, vert=False
-        )
-        plt.xlim(0, stats_dict['bad']['upper_whisker'] * 1.1)
-        for i in [1, 2]:
-            plt.hlines(
-                i, 0, 10, linestyles='--', linewidth=0.5,
-                colors='#95a5a6'
-            )
-        plt.ylim(0.5, 2.5)
-
-
-        boxplot = utils.pyplot_to_tensor(fig)
-        plt.close(fig)
-        return stats_dict, boxplot
-
-
-    def get_accuracy(self, stats_dict=None):
-        # type: (Dict[str, float]) -> Dict[str, float]
-        """
-        Get accuracy of the model on the test set.
-        :param stats_dict:
-        :return: accuracy dictionary with keys:
-            >> 'good': accuracy in detecting "good" samples
-            >> 'bad': accuracy in detecting "bad" samples
-            >> 'all': accuracy in detecting both "good" and "bad" samples
-        """
-
-        if stats_dict is None:
-            stats_dict, _ = self.get_stats()
-        self.model.stats = stats_dict
-
-        anomaly_th = stats_dict['good']['upper_whisker']
-
-        score = {'all': 0, 'good': 0, 'bad': 0}
-        counter = {'all': 0, 'good': 0, 'bad': 0}
-        for i, sample in enumerate(self.test_loader):
-            labels_true = sample[-1]
-            anomaly_scores = self.__get_scores_of_batch(sample)
-
-            batch_size = anomaly_scores.shape[0]
-            for i in range(batch_size):
-                label_true = labels_true[i]
-                anomaly_score = anomaly_scores[i].item()
-                label_pred = 'good' if anomaly_score < anomaly_th else 'bad'
-
-                counter['all'] += 1
-                counter[label_true] += 1
-                if label_pred == label_true:
-                    score['all'] += 1
-                    score[label_true] += 1
-
-        acc_dict = {
-            'all': score['all'] / counter['all'],
-            'good': score['good'] / counter['good'],
-            'bad': score['bad'] / counter['bad']
-        }
-        return acc_dict
+        return scores_dict, sol_dict, boxplot_dict, roc_dict
 
 
 def main(exp_name):
-    import torchvision
+    import cv2
 
     cnf = Conf(exp_name=exp_name)
 
     evaluator = Evaluator(cnf=cnf)
-    stats_dict, boxplot = evaluator.get_stats()
-    accuracy_dict = evaluator.get_accuracy(stats_dict=stats_dict)
+    scores_dict, sol_dict, boxplot_dict, roc_dict = evaluator.get_stats()
 
+    boxplot = bp_utils.plt_boxplot(boxplot_dict)
     out_path = cnf.exp_log_path / 'boxplot.png'
-    torchvision.utils.save_image(boxplot, out_path)
+    cv2.imwrite(out_path, boxplot[:, :, ::-1])
 
-    print(f'EXP: `{exp_name}`')
+    rocplot = roc_utils.plt_rocplot(roc_dict)
+    out_path = cnf.exp_log_path / 'rocplot.png'
+    cv2.imwrite(out_path, rocplot[:, :, ::-1])
+
+    print(f'\nEXP: `{exp_name}`')
     print(f'------------------------------')
-    print(f'>> accuracy (good): {100 * accuracy_dict["good"]:.2f}%')
-    print(f'>> accuracy (bad) : {100 * accuracy_dict["bad"]:.2f}%')
+    print(f'>> TPR..: {sol_dict["tpr"]*100:.2f}%')
+    print(f'>> TNR..: {sol_dict["tnr"]*100:.2f}%')
+    print(f'>> BA...: {sol_dict["bal_acc"]*100:.2f}%')
+    print(f'>> auroc: {100 * roc_dict["auroc"]:.2f}%')
     print(f'------------------------------')
-    print(f'>> accuracy (all) : {100 * accuracy_dict["all"]:.2f}%')
 
 
 if __name__ == '__main__':
-    main(exp_name='p1_rect_small_blur')
+    main(exp_name='a3_bigger')
