@@ -9,6 +9,7 @@ from torchvision import transforms
 
 from models.base_model import BaseModel
 from models.residual import ResidualStack
+import pre_processing
 
 
 TConv2D = nn.ConvTranspose2d  # shorcut
@@ -39,14 +40,14 @@ class SimpleAutoencoder(BaseModel):
 
         self.encoder = nn.Sequential(
             # --- downscale part: (3, H, W) -> (m, H/8, W/8)
-            nn.Conv2d(3, m // 2, kernel_size=4, stride=2, padding=1), nn.SiLU(),
-            nn.Conv2d(m // 2, m // 2, kernel_size=4, stride=2, padding=1), nn.SiLU(),
-            nn.Conv2d(m // 2, m, kernel_size=4, stride=2, padding=1), nn.SiLU(),
+            nn.Conv2d(3, m // 2, kernel_size=3, stride=2, padding=1), nn.SiLU(),
+            nn.Conv2d(m // 2, m // 2, kernel_size=3, stride=2, padding=1), nn.SiLU(),
+            nn.Conv2d(m // 2, m, kernel_size=3, stride=2, padding=1), nn.SiLU(),
             # --- residual part: (m, H/8, W/8) -> (m, H/8, W/8)
             nn.Conv2d(m, m, kernel_size=3, stride=1, padding=1),
             ResidualStack(m, m, mid_channels=m // 4, n_res_layers=n_res_layers),
             # --- last conv: (m, H/8, W/8) -> (code_channels, H/8, W/8)
-            nn.Conv2d(mid_channels, code_channels, kernel_size=(3, 3), stride=1, padding=1),
+            nn.Conv2d(mid_channels, code_channels, kernel_size=3, stride=1, padding=1),
             nn.Tanh()
         )
 
@@ -55,11 +56,14 @@ class SimpleAutoencoder(BaseModel):
             nn.Conv2d(code_channels, mid_channels, kernel_size=(3, 3), stride=1, padding=1),
             # --- residual part: (m, H/8, W/8) -> (m, H/8, W/8)
             ResidualStack(m, m, mid_channels=m // 4, n_res_layers=n_res_layers),
-            TConv2D(m, m, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(m, m, kernel_size=3, stride=1, padding=1),
             # --- upscale part: (m, H/8, W/8) -> (3, H, W)
-            TConv2D(m, m // 2, kernel_size=4, stride=2, padding=1), nn.SiLU(),
-            TConv2D(m // 2, m // 2, kernel_size=4, stride=2, padding=1), nn.SiLU(),
-            TConv2D(m // 2, 3, kernel_size=4, stride=2, padding=1), nn.Sigmoid()
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(m, m // 2, kernel_size=3, stride=1, padding=1), nn.SiLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(m // 2, m // 2, kernel_size=3, stride=1, padding=1), nn.SiLU(),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(m // 2, 3, kernel_size=3, stride=1, padding=1), nn.Sigmoid()
         )
 
         self.normal = torch.distributions.Normal(0, 1)
@@ -70,7 +74,7 @@ class SimpleAutoencoder(BaseModel):
         ])
 
         self.cache = {}
-        self.stats = None
+        self.anomaly_th = None
         self.cnf_dict = None
 
 
@@ -137,8 +141,8 @@ class SimpleAutoencoder(BaseModel):
         return code.cpu().numpy()
 
 
-    def save_w(self, path, test_stats=None, cnf_dict=None):
-        # type: (str, Optional[Dict], Optional[Dict]) -> None
+    def save_w(self, path, anomaly_th=None, cnf_dict=None):
+        # type: (str, Optional[float], Optional[Dict]) -> None
         """
         save model weights at the specified path
         """
@@ -149,7 +153,7 @@ class SimpleAutoencoder(BaseModel):
             'code_channels': self.code_channels,
             'code_h': self.code_h,
             'code_w': self.code_w,
-            'test_stats': test_stats,
+            'anomaly_th': anomaly_th,
             'cnf_dict': cnf_dict
         }
         torch.save(__state, path)
@@ -184,7 +188,12 @@ class SimpleAutoencoder(BaseModel):
         )
         autoencoder.load_state_dict(pth_dict['state_dict'])
         autoencoder.cnf_dict = pth_dict['cnf_dict']
-        autoencoder.stats = pth_dict['test_stats']
+
+        try:
+            autoencoder.anomaly_th = pth_dict['anomaly_th']
+        except KeyError:
+            print('WARNING: you are using an old PTH file!')
+            autoencoder.anomaly_th = None
 
         if mode == 'eval':
             autoencoder.requires_grad(False)
@@ -215,22 +224,47 @@ class SimpleAutoencoder(BaseModel):
         return code_error
 
 
-    def get_code_anomaly_perc(self, x, stats=None):
-        # type: (torch.Tensor, Optional[Dict]) -> float
+    def get_code_anomaly_perc(self, img, anomaly_th=None, max_val=100):
+        # type: (np.ndarray, float, Optional[int]) -> float
+        """
+        :param img:
+        :param anomaly_th:
+        :return:
+        """
 
-        if stats is not None:
-            self.stats = stats
-        assert self.stats is not None, \
-            'you need to build the anomaly_th dictionary for this model ' \
-            'before using the `get_code_anomaly_perc` method, ' \
-            'or you can pass the anomaly_th dictionary as input'
+        if anomaly_th is None:
+            assert self.anomaly_th is not None, \
+                f'one of `anomaly_th` and `self.anomaly_th` ' \
+                f'must not be `None`'
+
+        # ---- pre-processing transformations
+        # (1) crop if needed
+        # (2) resize if needed
+        # (3) convert from BGR to RGB
+        # (4) convert from `np.ndarray` to `torch.Tensor`
+        pre_proc_tr = pre_processing.PreProcessingTr(
+            resized_h=self.cnf_dict['resized_h'],
+            resized_w=self.cnf_dict['resized_w'],
+            crop_x_min=self.cnf_dict['crop_x_min'],
+            crop_y_min=self.cnf_dict['crop_y_min'],
+            crop_side=self.cnf_dict['crop_side'],
+            to_tensor=True
+        )
+
+        x = pre_proc_tr(img)
+        x = x.unsqueeze(0).to(self.device)
 
         anomaly_score = self.get_code_anomaly_score(x).item()
-        if anomaly_score < self.stats['good']['q0.75']:
-            anomaly_perc = 0
+
+        # we want an image with `anomaly_score == anomaly_th`
+        # to have an anomaly percentage of 50%
+        anomaly_prob = anomaly_score / anomaly_th
+        anomaly_prec = (anomaly_prob * 100) - 50
+
+        if max_val is None:
+            return max(0, anomaly_prec)
         else:
-            anomaly_perc = anomaly_score / (2 * self.stats['good']['w1'])
-        return min(anomaly_perc, 1)
+            return float(np.clip(anomaly_prec, 0, max_val))
 
 
 # ---------

@@ -30,7 +30,7 @@ def get_ad_rates(anomaly_scores, anomaly_th, labels_true):
     """
     :param anomaly_scores: sequence of anomaly scores;
         >> 1 value (float) for each sample
-        >> anomaly_scores[i] is the anomaly score of the i-th sample
+        >> anomaly_scores[i] is the anomaly score of the i-anomaly_th sample
     :param anomaly_th: anomaly threshold
         >> a sample with an anomaly score <= then `anomaly_th`
            is classified as "good" (not anomalous)
@@ -38,7 +38,7 @@ def get_ad_rates(anomaly_scores, anomaly_th, labels_true):
            is classified as "bad" (anomalous)
     :param labels_true: sequence of GT labels;
         >> 1 value (str: "good" or "bad") for each sample
-        >> labels_true[i] is the label of the i-th sample
+        >> labels_true[i] is the label of the i-anomaly_th sample
     :return: rates dictionary, whith the following keys:
         >> "TPR": true positive rate
         >> "FPR": false positive rate
@@ -149,8 +149,18 @@ def debug():
     bads_scores = np.random.normal(4, 1.1, (N_BAD,)).astype(float)
     anomaly_scores = np.concatenate([goods_scores, bads_scores], 0)
 
-    draw_boxplot(goods_scores, bads_scores)
-    plot_roc(anomaly_scores, labels_true)
+    g_min = goods_scores.min()
+    g_max = goods_scores.max()
+    b_min = bads_scores.min()
+    b_max = bads_scores.max()
+
+    points = [g_min, g_max, b_min, b_max]
+    points.sort()
+    r_min = points[1]
+    r_max = points[2]
+    print(points)
+    #draw_boxplot(goods_scores, bads_scores)
+    #plot_roc(anomaly_scores, labels_true)
 
 
 if __name__ == '__main__':

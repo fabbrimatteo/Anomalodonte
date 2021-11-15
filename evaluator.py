@@ -5,7 +5,7 @@ import roc_utils
 
 matplotlib.use('TkAgg')
 import numpy as np
-from models.autoencoder3 import SimpleAutoencoder
+from models.autoencoder5 import SimpleAutoencoder
 from torch import nn
 import torch
 from torch.utils.data import DataLoader
@@ -93,7 +93,7 @@ class Evaluator(object):
 
 
     def get_stats(self):
-        # type: () -> Tuple[Dict[str, Dict[str, float]], torch.Tensor]
+        # type: () -> Tuple[Dict[str, ...], Dict[str, ...], Dict[str, ...], Dict[str, ...]]
         """
         :return: (boxplot_dict, boxplot) ->
         # >> boxplot_dict: a dictionary that contains the statistics
@@ -131,6 +131,8 @@ class Evaluator(object):
 
         anomaly_th = boxplot_dict['good']['upper_whisker']
         sol_dict = roc_utils.get_ad_rates(scores, anomaly_th, labels_true)
+        # for i in range(len(scores)):
+        #     print(f'{labels_true[i]}{i:03d} -> {max(0, 100*(scores[i]/anomaly_th) - 50):.0f}%')
 
         return scores_dict, sol_dict, boxplot_dict, roc_dict
 
@@ -153,12 +155,12 @@ def main(exp_name):
 
     print(f'\nEXP: `{exp_name}`')
     print(f'------------------------------')
-    print(f'>> TPR..: {sol_dict["tpr"]*100:.2f}%')
-    print(f'>> TNR..: {sol_dict["tnr"]*100:.2f}%')
-    print(f'>> BA...: {sol_dict["bal_acc"]*100:.2f}%')
+    print(f'>> TPR..: {sol_dict["tpr"] * 100:.2f}% (acc bad)')
+    print(f'>> TNR..: {sol_dict["tnr"] * 100:.2f}% (acc good)')
+    print(f'>> BA...: {sol_dict["bal_acc"] * 100:.2f}%')
     print(f'>> auroc: {100 * roc_dict["auroc"]:.2f}%')
     print(f'------------------------------')
 
 
 if __name__ == '__main__':
-    main(exp_name='a3_bigger')
+    main(exp_name='a5_noise_bis')

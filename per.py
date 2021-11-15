@@ -15,7 +15,7 @@ def bar(img, x_min, y_min, h, w, color):
     return img
 
 
-def main(img, perc):
+def show_anomaly(img, perc, label=''):
     pad = 32
     barh = 64
 
@@ -50,15 +50,13 @@ def main(img, perc):
     # add text centered on image
     textX = round((cx - textsize[0]) / 2)
     textY = round((cy + textsize[1]) / 2)
-
-    print((textX, textY))
     cv2.putText(bck, text, (cx - (textsize[0] // 2), 2 * pad + barh // 2 + h + (textsize[1] // 2)), font, 1,
                 (255, 255, 255), 2)
 
-    cv2.imshow('', bck)
+    cv2.imshow(label, bck)
     cv2.waitKey()
-    print(img.shape)
+    cv2.destroyWindow(label)
 
 
 if __name__ == '__main__':
-    main()
+    show_anomaly()

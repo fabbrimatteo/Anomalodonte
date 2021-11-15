@@ -1,0 +1,29 @@
+# training params
+LR: 0.0001
+EPOCHS: 128
+MAX_PATIENCE: 64
+
+# dataloader params
+N_WORKERS: 4
+BATCH_SIZE: 32
+DS_PATH: /nas/softechict-nas-3/matteo/Datasets/Spal/cables_6mm_p1_rect
+
+# loss params
+LOSS_FN: 'L1+MS_SSIM+VGG'
+REC_ERROR_FN: 'CODE_MSE_LOSS'
+
+# model params
+CODE_CHANNELS: 3
+CODE_H: 4
+CODE_W: 4
+CODE_NOISE: 0
+
+# pre-processing params
+RESIZED_H: 256
+RESIZED_W: 256
+CROP_X_MIN: 0
+CROP_Y_MIN: 0
+CROP_SIDE: 256
+
+# other params
+DEVICE: cuda

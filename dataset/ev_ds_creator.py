@@ -45,7 +45,7 @@ def main(resized_h=256, resized_w=256,
         iaa.Resize(size=(resized_h, resized_w))
     ])
 
-    light_aug = iaa.Sequential([
+    dark_aug = iaa.Sequential([
         croop_good_aug,
         iaa.Multiply(mul=(0.75, 0.5)),
         iaa.AddToBrightness(add=(-128, -32), to_colorspace=iaa.CSPACE_HSV),
@@ -59,10 +59,18 @@ def main(resized_h=256, resized_w=256,
         iaa.Sometimes(0.5, then_list=iaa.JpegCompression()),
     ])
 
+    light_aug = iaa.Sequential([
+        croop_good_aug,
+        iaa.Multiply(mul=(1.25, 1.5)),
+        iaa.AddToBrightness(add=(32, 128), to_colorspace=iaa.CSPACE_HSV),
+        iaa.Sometimes(0.5, then_list=iaa.AddToSaturation(value=(125, 75))),
+        iaa.Sometimes(0.25, then_list=iaa.AddToHue(value=(-16, 16))),
+    ])
+
     aug_seq = iaa.OneOf([
         move_aug,
         light_aug,
-        blur_aug
+        dark_aug
     ])
 
 

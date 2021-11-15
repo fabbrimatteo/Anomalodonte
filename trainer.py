@@ -15,9 +15,11 @@ from torch.utils.data import DataLoader
 from conf import Conf
 from dataset.spal_fake_ds import SpalDS
 from evaluator import Evaluator
-from models.autoencoder3 import SimpleAutoencoder
+from models.autoencoder5 import SimpleAutoencoder
 from models.dd_loss import DDLoss
 from progress_bar import ProgressBar
+import boxplot_utils
+import roc_utils
 
 
 class Trainer(object):
@@ -30,14 +32,14 @@ class Trainer(object):
         # init train loader
         training_set = SpalDS(cnf, mode='train')
         self.train_loader = DataLoader(
-            dataset=training_set, batch_size=cnf.batch_size, num_workers=cnf.n_workers,
+            dataset=training_set, batch_size=cnf.batch_size, num_workers=0,
             worker_init_fn=training_set.wif, shuffle=True, pin_memory=True,
         )
 
         # init test loader
         test_set = SpalDS(cnf, mode='test')
         self.test_loader = DataLoader(
-            dataset=test_set, batch_size=cnf.batch_size, num_workers=1,
+            dataset=test_set, batch_size=cnf.batch_size, num_workers=0,
             worker_init_fn=test_set.wif_test, shuffle=False, pin_memory=False,
         )
 
@@ -152,9 +154,25 @@ class Trainer(object):
             model=self.model, cnf=self.cnf,
             test_loader=self.test_loader
         )
-        stats_dict, boxplot = evaluator.get_stats()
-        self.sw.add_image(tag=f'boxplot', img_tensor=boxplot, global_step=self.epoch)
-        accuracy = evaluator.get_accuracy(boxplot_dict=stats_dict)['all']
+        scores_dict, sol_dict, boxplot_dict, roc_dict = evaluator.get_stats()
+
+        boxplot = boxplot_utils.plt_boxplot(boxplot_dict)
+        rocplot = roc_utils.plt_rocplot(roc_dict)
+
+        # --- TENSORBOARD: boxplot
+        self.sw.add_image(
+            tag=f'boxplot', img_tensor=boxplot,
+            global_step=self.epoch, dataformats='HWC'
+        )
+
+        # --- TENSORBOARD: rocplot
+        self.sw.add_image(
+            tag=f'rocplot', img_tensor=rocplot,
+            global_step=self.epoch, dataformats='HWC'
+        )
+
+        accuracy = sol_dict['bal_acc']
+        auroc = roc_dict['auroc']
 
         test_losses = []
         for step, sample in enumerate(self.test_loader):
@@ -177,17 +195,19 @@ class Trainer(object):
         if self.best_test_accuracy is None or accuracy > self.best_test_accuracy:
             self.best_test_accuracy = accuracy
             self.patience = self.cnf.max_patience
-            self.model.save_w(self.log_path / 'best.pth', cnf_dict=self.cnf.dict_view, test_stats=stats_dict)
-            torch.save(stats_dict, self.log_path / 'stats.pth')
+            self.model.save_w(self.log_path / 'best.pth', cnf_dict=self.cnf.dict_view, test_stats=None)
+            torch.save(None, self.log_path / 'anomaly_th.pth')
         else:
             self.patience = self.patience - 1
 
         # log test results
-        print(f'\t● Accuracy on TEST-set: {100 * accuracy:.2f}%'
+        print(f'\t● Bal. Acc: {100 * accuracy:.2f}%'
+              f' │ AUROC: {100 * auroc:.2f}%'
               f' │ patience: {self.patience}'
               f' │ T: {time() - t:.2f} s')
         self.sw.add_scalar(tag='test_loss', scalar_value=np.mean(test_losses), global_step=self.epoch)
         self.sw.add_scalar(tag='accuracy', scalar_value=100 * accuracy, global_step=self.epoch)
+        self.sw.add_scalar(tag='auroc', scalar_value=100 * auroc, global_step=self.epoch)
         self.sw.add_scalar(tag='patience', scalar_value=self.patience, global_step=self.epoch)
 
         if self.patience == 0:
