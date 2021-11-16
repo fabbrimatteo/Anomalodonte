@@ -1,7 +1,5 @@
 import matplotlib
 
-import roc_utils
-
 
 matplotlib.use('TkAgg')
 import numpy as np
@@ -12,8 +10,6 @@ from torch.utils.data import DataLoader
 from typing import Dict
 from conf import Conf
 from dataset.spal_fake_ds import SpalDS
-from matplotlib import pyplot as plt
-import utils
 import piq
 from typing import Tuple
 import roc_utils
@@ -22,8 +18,8 @@ import boxplot_utils as bp_utils
 
 class Evaluator(object):
 
-    def __init__(self, cnf, model=None, test_loader=None):
-        # type: (Conf, SimpleAutoencoder, DataLoader) -> None
+    def __init__(self, cnf, model=None, test_loader=None, mode='test'):
+        # type: (Conf, SimpleAutoencoder, DataLoader, str) -> None
 
         self.test_loader = test_loader
         self.model = model
@@ -36,7 +32,7 @@ class Evaluator(object):
             )
 
         if self.test_loader is None:
-            test_set = SpalDS(cnf=self.cnf, mode='test')
+            test_set = SpalDS(cnf=self.cnf, mode=mode)
             self.test_loader = DataLoader(
                 dataset=test_set, batch_size=8, num_workers=0,
                 worker_init_fn=test_set.wif_test, shuffle=False,
@@ -71,10 +67,11 @@ class Evaluator(object):
             # anomaly_score = nn.MSELoss()(code_pred, code_true).item()
 
         elif self.cnf.rec_error_fn == 'MSE_LOSS':
-            anomaly_score = nn.MSELoss()(y_pred, y_true).item()
+            x = nn.MSELoss(reduction='none')(y_pred, y_true)
+            anomaly_score = x.mean((1, 2, 3))
 
         elif self.cnf.rec_error_fn == 'MS_SSIM_LOSS':
-            anomaly_score = piq.MultiScaleSSIMLoss()(y_pred, y_true).item()
+            anomaly_score = piq.MultiScaleSSIMLoss(reduction='none')(y_pred, y_true)
 
         return anomaly_score
 
@@ -137,23 +134,28 @@ class Evaluator(object):
         return scores_dict, sol_dict, boxplot_dict, roc_dict
 
 
-def main(exp_name):
+def main(exp_name, mode):
     import cv2
 
     cnf = Conf(exp_name=exp_name)
 
-    evaluator = Evaluator(cnf=cnf)
+    evaluator = Evaluator(cnf=cnf, mode=mode)
     scores_dict, sol_dict, boxplot_dict, roc_dict = evaluator.get_stats()
 
+    # "test" mode -> anomaly detection test (prefix: "ad")
+    # "ev-test" mode -> entry validation test (prefix: "ev")
+    assert mode in ['test', 'ev-test']
+    pref = 'ad' if mode == 'test' else 'ev'
+
     boxplot = bp_utils.plt_boxplot(boxplot_dict)
-    out_path = cnf.exp_log_path / 'boxplot.png'
+    out_path = cnf.exp_log_path / f'{pref}_boxplot.png'
     cv2.imwrite(out_path, boxplot[:, :, ::-1])
 
     rocplot = roc_utils.plt_rocplot(roc_dict)
-    out_path = cnf.exp_log_path / 'rocplot.png'
+    out_path = cnf.exp_log_path / f'{pref}_rocplot.png'
     cv2.imwrite(out_path, rocplot[:, :, ::-1])
 
-    print(f'\nEXP: `{exp_name}`')
+    print(f'\nEXP: `{exp_name}` ({pref.upper()})')
     print(f'------------------------------')
     print(f'>> TPR..: {sol_dict["tpr"] * 100:.2f}% (acc bad)')
     print(f'>> TNR..: {sol_dict["tnr"] * 100:.2f}% (acc good)')
@@ -163,4 +165,5 @@ def main(exp_name):
 
 
 if __name__ == '__main__':
-    main(exp_name='a5_noise_bis')
+    main(exp_name='a5_noise', mode='ev-test')
+    main(exp_name='a5_noise', mode='test')

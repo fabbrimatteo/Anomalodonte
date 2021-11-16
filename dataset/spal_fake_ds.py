@@ -33,8 +33,8 @@ class SpalDS(Dataset):
         """
         self.cnf = cnf
 
-        assert mode in ['train', 'test'], \
-            'mode must be one of {"train", "test"}'
+        assert mode in ['train', 'test', 'ev-test'], \
+            'mode must be one of {"train", "test", "ev-test"}'
         self.mode = mode
 
         self.imgs = []
@@ -54,33 +54,53 @@ class SpalDS(Dataset):
         self.to_tensor = torchvision.transforms.ToTensor()
 
         t0 = time.time()
-        print(f'$> loading images into memory: please wait...')
+        if mode == 'train':
+            print(f'$> loading images into memory: please wait...')
 
-        all_paths = (self.cnf.ds_path / mode).files()
+        if mode == 'ev-test':
+            test_paths = (self.cnf.ds_path / 'test').files()
+            ev_test_paths = (self.cnf.ds_path / 'ev-test').files()
+            all_paths = test_paths + ev_test_paths
+        else:
+            all_paths = (self.cnf.ds_path / mode).files()
 
         # TODO: remove this
-        if mode == 'test':
-            all_paths.sort()
-            b = [b for b in all_paths if b.basename().startswith('bad')]
-            g = [g for g in all_paths if g.basename().startswith('good')]
-            all_paths = b + g[:len(b)]
+        # if mode == 'test':
+        #     all_paths.sort()
+        #     b = [b for b in all_paths if b.basename().startswith('bad')]
+        #     g = [g for g in all_paths if g.basename().startswith('good')]
+        #     all_paths = b + g[:len(b)]
+        #     for f in g[len(b):]:
+        #         print(f'[WARNING] ignoring test img \'{f}\'')
 
         for i, img_path in enumerate(all_paths):
-            print(f'\r\t$> {i + 1} of {len(all_paths)}', end='')
+            if mode == 'train':
+                print(f'\r\t$> {i + 1} of {len(all_paths)}', end='')
 
             x = cv2.imread(img_path)
             x = self.trs(x)
             self.imgs.append(x)
 
             # the label of an image can be inferred from its filename:
+            # ---- for "train" or "test" mode
             # >> an image with label "good"
             #    has a filename that starts with "good_"
             # >> an image with label "bad"
             #    has a filename that starts with "bad_"
-            label = img_path.basename().split('_')[0]
+            # ---- for "ev-test" mode
+            # >> an image with label "bad"
+            #    has a filename that starts with "invalid_"
+            # >> an image with label "good"
+            #    has a filename that does NOT starts with "invalid_"
+            name = img_path.basename()
+            if self.mode in ['train', 'test']:
+                label = name.split('_')[0]
+            else:
+                label = 'bad' if name.startswith('invalid_') else 'good'
             self.labels.append(label)
 
-        print(f'\r\t$> done in {time.time() - t0:.0f} seconds')
+        if mode == 'train':
+            print(f'\r\t$> done in {time.time() - t0:.0f} seconds')
 
 
     def __len__(self):
@@ -133,7 +153,7 @@ class SpalDS(Dataset):
 
 
 def main():
-    cnf = Conf(exp_name='a3')
+    cnf = Conf(exp_name='a5_bis')
     ds = SpalDS(cnf=cnf, mode='test')
     for i in range(len(ds)):
         x, y, label = ds[i]
