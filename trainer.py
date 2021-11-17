@@ -1,25 +1,26 @@
 # -*- coding: utf-8 -*-
 # ---------------------
 
-# this MUST be imported before `import torch`
-from torch.utils.tensorboard import SummaryWriter
-
 from time import time
 
 import numpy as np
+
+# this MUST be imported before `import torch`
+from torch.utils.tensorboard import SummaryWriter
+
 import torch
 import torchvision as tv
 from torch import optim
 from torch.utils.data import DataLoader
 
+import boxplot_utils
+import roc_utils
 from conf import Conf
 from dataset.spal_fake_ds import SpalDS
 from evaluator import Evaluator
 from models.autoencoder5 import SimpleAutoencoder
 from models.dd_loss import DDLoss
 from progress_bar import ProgressBar
-import boxplot_utils
-import roc_utils
 
 
 class Trainer(object):
@@ -195,7 +196,12 @@ class Trainer(object):
         if self.best_test_accuracy is None or accuracy > self.best_test_accuracy:
             self.best_test_accuracy = accuracy
             self.patience = self.cnf.max_patience
-            self.model.save_w(self.log_path / 'best.pth', cnf_dict=self.cnf.dict_view, test_stats=None)
+            anomaly_th = boxplot_dict['good']['upper_whisker']
+            self.model.save_w(
+                self.log_path / 'best.pth',
+                cnf_dict=self.cnf.dict_view,
+                anomaly_th=anomaly_th
+            )
             torch.save(None, self.log_path / 'anomaly_th.pth')
         else:
             self.patience = self.patience - 1

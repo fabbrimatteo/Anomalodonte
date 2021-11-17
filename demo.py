@@ -9,19 +9,16 @@ from evaluator import Evaluator
 SPAL_PATH = Path('/nas/softechict-nas-3/matteo/Datasets/Spal')
 
 
-def demo(img_path, exp_name):
+def demo(in_dir_path, exp_name):
     cnf = Conf(exp_name=exp_name)
     evaluator = Evaluator(cnf=cnf)
 
     _, _, boxplot_dict, _ = evaluator.get_stats()
     anomaly_th = boxplot_dict['good']['upper_whisker']
 
-    for f in (SPAL_PATH / 'cables_6mm_p1_rect' / 'test').files():
+    for f in in_dir_path.files():
         img = cv2.imread(f)
         anomaly_perc = evaluator.model.get_code_anomaly_perc(img, anomaly_th)
-
-        if not ('good' in f.basename() and anomaly_perc > 50):
-            continue
 
         print(f, anomaly_perc)
 
@@ -30,4 +27,7 @@ def demo(img_path, exp_name):
 
 
 if __name__ == '__main__':
-    demo(exp_name='a5_noise', img_path=None)
+    demo(
+        exp_name='a5_noise',
+        in_dir_path=SPAL_PATH / 'cables_6mm_p1_rect' / 'test'
+    )

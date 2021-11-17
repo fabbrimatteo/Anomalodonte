@@ -18,7 +18,7 @@ import numpy as np
 from path import Path
 from typing import Optional
 import termcolor
-
+import warnings
 
 def set_seed(seed=None):
     # type: (Optional[int]) -> int
@@ -105,7 +105,14 @@ class Conf(object):
         self.n_workers = y.get('N_WORKERS', 4)  # type: int
         self.batch_size = y.get('BATCH_SIZE', 8)  # type: int
         self.loss_fn = y.get('LOSS_FN', 'L1+MS_SSIM+VGG')  # type: str
-        self.rec_error_fn = y.get('REC_ERROR_FN', 'CODE_MSE_LOSS')  # type: str
+
+
+        if not 'SCORE_FN' in y:
+            warnings.warn(f'`REC_ERROR_FN` is deprecated; now it is `SCORE_FN`')
+            self.score_fn = y.get('REC_ERROR_FN', 'CODE_MSE_LOSS')  # type: str
+        else:
+            self.score_fn = y.get('SCORE_FN', 'CODE_MSE_LOSS')  # type: str
+
         self.max_patience = y.get('MAX_PATIENCE', 8)  # type: int
         self.code_channels = y.get('CODE_CHANNELS', 4)  # type: int
         self.code_h = y.get('CODE_H', None)  # type: Optional[int]

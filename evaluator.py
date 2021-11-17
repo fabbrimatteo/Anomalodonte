@@ -37,6 +37,36 @@ class Evaluator(object):
             )
 
 
+    def get_test_scores(self):
+        # type: () -> Tuple[np.ndarray, np.ndarray]
+        """
+        :return: (all_scores, labels)
+            >> `all_scores` -> array of anomaly scores; one element
+                for each sample of the test set
+            >> `labels` -> array of GT labels; one label for each sample
+                of the test set; labels[i] is the label of the i-th
+                sample of the test set.
+        """
+        all_scores = []
+        labels_true = []
+        for i, sample in enumerate(self.test_loader):
+            x, _, labels = sample
+
+            anomaly_scores = self.model.get_anomaly_score(
+                x, score_function=self.cnf.score_fn
+            )
+
+            batch_size = anomaly_scores.shape[0]
+            for i in range(batch_size):
+                all_scores.append(anomaly_scores[i].item())
+                labels_true.append(labels[i])
+
+        all_scores = np.array(all_scores)
+        labels_true = np.array(labels_true)
+
+        return all_scores, labels_true
+
+
     def get_stats(self):
         # type: () -> Tuple[Dict[str, ...], Dict[str, ...], Dict[str, ...], Dict[str, ...]]
         """
@@ -49,36 +79,21 @@ class Evaluator(object):
         #    of the "good" and "bad" test samples
         """
 
-        # bild `score_dict`, that is a disctionary with 2 keys:
-        # >> "good": list of anomaly scores -> one for each "good" sample
-        # >> "bad": list of anomaly scores -> one for each "bad" sample
-        # >> "all": list of anomaly scores -> one for each sample
-        # >> "labels_true": list of GT labels -> one for each sample
-
-        all_scores = []
-        labels_true = []
-        for i, sample in enumerate(self.test_loader):
-            x, _, labels = sample
-
-            anomaly_scores = self.model.get_anomaly_score(
-                x, score_function=self.cnf.rec_error_fn
-            )
-
-            batch_size = anomaly_scores.shape[0]
-            for i in range(batch_size):
-                all_scores.append(anomaly_scores[i].item())
-                labels_true.append(labels[i])
-
-        all_scores = np.array(all_scores)
-        labels_true = np.array(labels_true)
+        all_scores, labels_true = self.get_test_scores()
 
         # build `boxplot_dict`, that contains the statistics
         # relating to the distribution of the anomaly scores
         # of the "good" and "bad" test samples
         boxplot_dict = bp_utils.get_boxplot_dict(all_scores, labels_true)
+
+        # build `roc_dict`, that contains the TPR and FPR lists
+        # of the model with one element for each possible threshold
+        # on the anomaly score; it also contains the AUROC
         roc_dict = roc_utils.get_roc_dict(all_scores, labels_true)
         scores_dict = {'scores': all_scores, 'labels_true': labels_true}
 
+        # build `sol_dict`, that contains the statistics
+        # relating to the chosen solution
         anomaly_th = boxplot_dict['good']['upper_whisker']
         sol_dict = roc_utils.get_ad_rates(all_scores, anomaly_th, labels_true)
 
@@ -89,7 +104,6 @@ def main(exp_name, mode):
     import cv2
 
     cnf = Conf(exp_name=exp_name)
-    cnf.rec_error_fn = 'MS_SSIM_LOSS'
 
     evaluator = Evaluator(cnf=cnf, mode=mode)
     scores_dict, sol_dict, boxplot_dict, roc_dict = evaluator.get_stats()
@@ -109,7 +123,7 @@ def main(exp_name, mode):
     cv2.imwrite(out_path, rocplot[:, :, ::-1])
 
     print(f'\nEXP: `{exp_name}` ({pref.upper()})')
-    print(f'anomaly threshold: {anomaly_th:.4f} with `{cnf.rec_error_fn}`')
+    print(f'anomaly threshold: {anomaly_th:.4f} with `{cnf.score_fn}`')
     print(f'------------------------------')
     print(f'>> TPR..: {sol_dict["tpr"] * 100:.2f}% (acc bad)')
     print(f'>> TNR..: {sol_dict["tnr"] * 100:.2f}% (acc good)')
@@ -119,4 +133,4 @@ def main(exp_name, mode):
 
 
 if __name__ == '__main__':
-    main(exp_name='a5_noise', mode='test')
+    main(exp_name='a5_noise_new', mode='test')

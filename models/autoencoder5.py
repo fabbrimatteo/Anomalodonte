@@ -290,7 +290,7 @@ class SimpleAutoencoder(BaseModel):
         x = pre_proc_tr(img)
         x = x.unsqueeze(0).to(self.device)
 
-        anomaly_score = self.get_anomaly_score(x).item()
+        anomaly_score = self.get_anomaly_score(x, 'CODE_MSE_LOSS ').item()
 
         # we want an image with `anomaly_score == anomaly_th`
         # to have an anomaly percentage of 50%
