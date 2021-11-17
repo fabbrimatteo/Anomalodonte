@@ -10,6 +10,7 @@ from torchvision import transforms
 from models.base_model import BaseModel
 from models.residual import ResidualStack
 import pre_processing
+import piq
 
 
 TConv2D = nn.ConvTranspose2d  # shorcut
@@ -202,26 +203,61 @@ class SimpleAutoencoder(BaseModel):
         return autoencoder.to(device)
 
 
-    def get_code_anomaly_score(self, x):
-        # type: (torch.Tensor) -> torch.Tensor
+    def get_anomaly_score(self, x, score_function):
+        # type: (torch.Tensor, str) -> torch.Tensor
+        """
+        Returns the anomaly scores of the input batch `x`
+        w.r.t. the specified score function.
+
+        The score function can be:
+        >> 'MSE_LOSS': MSE between target `x` and reconstruction `d(e(x))`
+        >> 'MS_SSIM_LOSS':  multi-scale structural similarity loss
+        between target `x` and reconstruction `d(e(x))`
+        >> 'CODE_MSE_LOSS': MSE between target code `e(x)` and
+        reconstruction code`e(d(e(x)))`
+
+        :param x: batch of input images with shape (B, C, H, W)
+        :param score_function: The score function can be:
+            >> 'MSE_LOSS': MSE between `x` and reconstruction `d(e(x))`
+            >> 'MS_SSIM_LOSS':  multi-scale structural similarity loss
+                between target `x` and reconstruction `d(e(x))`
+            >> 'CODE_MSE_LOSS': MSE between target code `e(x)` and
+                reconstruction code`e(d(e(x)))`
+
+        :return: anomaly scores -> tensor with shape (B,)
+            >> (one score for each batch element)
+        """
 
         # backup function to restore the working mode after method call
         backup_function = self.train if self.training else self.eval
 
+        x = x.to(self.device)
+        code_true = self.encode(x, code_noise=None)
+        x_pred = self.decode(code_true)
+
         self.eval()
         with torch.no_grad():
-            code_true = self.encode(x, code_noise=None)
-            x_pred = self.decode(code_true)
-            code_pred = self.encode(x_pred, code_noise=None)
 
-            # MSE with aggregation (mean) on (C, H, W,)
-            # >> code_error.shape = (<batch_size>,)
-            code_error = ((code_pred - code_true) ** 2).mean([1, 2, 3])
+            if score_function == 'CODE_MSE_LOSS':
+                code_pred = self.encode(x_pred, code_noise=None)
+                score = ((code_pred - code_true) ** 2).mean([1, 2, 3])
+
+            elif score_function == 'MSE_LOSS':
+                x = nn.MSELoss(reduction='none')(x_pred, x)
+                score = x.mean((1, 2, 3))
+
+            elif score_function == 'MS_SSIM_LOSS':
+                ssim_f = piq.MultiScaleSSIMLoss(reduction='none')
+                score = ssim_f(x_pred, x)
+
+            else:
+                raise ValueError(f'[!] unknown score function '
+                                 f'{score_function}')
 
         # restore previous working mode (train/eval)
         backup_function()
 
-        return code_error
+        return score
 
 
     def get_code_anomaly_perc(self, img, anomaly_th=None, max_val=100):
@@ -254,7 +290,7 @@ class SimpleAutoencoder(BaseModel):
         x = pre_proc_tr(img)
         x = x.unsqueeze(0).to(self.device)
 
-        anomaly_score = self.get_code_anomaly_score(x).item()
+        anomaly_score = self.get_anomaly_score(x).item()
 
         # we want an image with `anomaly_score == anomaly_th`
         # to have an anomaly percentage of 50%
@@ -277,7 +313,7 @@ def main():
 
     model = SimpleAutoencoder(n_res_layers=2, code_channels=8, code_h=8, code_w=8).to(device)
 
-    model.get_code_anomaly_score(x)
+    model.get_anomaly_score(x)
     y = model.forward(x)
     code = model.encode(x)
 

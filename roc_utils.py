@@ -97,11 +97,15 @@ def get_roc_dict(anomaly_scores, labels_true):
 
     fpr_list = []
     tpr_list = []
+    best_ba = (0, th_min)
     for th in np.arange(th_min, th_max, th_range / 32):
         rates_dict = get_ad_rates(anomaly_scores, th, labels_true)
 
         tpr = rates_dict['tpr']
         fpr = rates_dict['fpr']
+
+        if rates_dict['bal_acc'] > best_ba[0]:
+            best_ba = (rates_dict['bal_acc'], th)
 
         fpr_list.append(fpr)
         tpr_list.append(tpr)

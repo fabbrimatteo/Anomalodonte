@@ -9,11 +9,11 @@ import cv2
 import imgaug
 import numpy as np
 import torch
+import torchvision
 from torch.utils.data import Dataset
 
 from conf import Conf
 from pre_processing import PreProcessingTr
-import torchvision
 
 
 class SpalDS(Dataset):
@@ -29,7 +29,9 @@ class SpalDS(Dataset):
         # type: (Conf, str) -> None
         """
         :param cnf: configuration object
-        :param mode: working mode -> must be one of {"train", "test"}
+        :param mode: working mode
+            -> must be one of {"train", "test", "ev-test"}
+            TODO: add a comment about the meaning of each mode
         """
         self.cnf = cnf
 
@@ -64,15 +66,6 @@ class SpalDS(Dataset):
         else:
             all_paths = (self.cnf.ds_path / mode).files()
 
-        # TODO: remove this
-        # if mode == 'test':
-        #     all_paths.sort()
-        #     b = [b for b in all_paths if b.basename().startswith('bad')]
-        #     g = [g for g in all_paths if g.basename().startswith('good')]
-        #     all_paths = b + g[:len(b)]
-        #     for f in g[len(b):]:
-        #         print(f'[WARNING] ignoring test img \'{f}\'')
-
         for i, img_path in enumerate(all_paths):
             if mode == 'train':
                 print(f'\r\t$> {i + 1} of {len(all_paths)}', end='')
@@ -81,17 +74,17 @@ class SpalDS(Dataset):
             x = self.trs(x)
             self.imgs.append(x)
 
-            # the label of an image can be inferred from its filename:
-            # ---- for "train" or "test" mode
-            # >> an image with label "good"
-            #    has a filename that starts with "good_"
-            # >> an image with label "bad"
-            #    has a filename that starts with "bad_"
-            # ---- for "ev-test" mode
-            # >> an image with label "bad"
-            #    has a filename that starts with "invalid_"
-            # >> an image with label "good"
-            #    has a filename that does NOT starts with "invalid_"
+            # the label of an image can be inferred from its filename;
+            # >> (1) for "train" or "test" mode
+            #    >> an image with label "good"
+            #       has a filename that starts with "good_"
+            #    >> an image with label "bad"
+            #       has a filename that starts with "bad_"
+            # >> (2) for "ev-test" mode
+            #    >> an image with label "bad"
+            #       has a filename that starts with "invalid_"
+            #    >> an image with label "good"
+            #       has a filename that does NOT starts with "invalid_"
             name = img_path.basename()
             if self.mode in ['train', 'test']:
                 label = name.split('_')[0]

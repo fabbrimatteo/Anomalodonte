@@ -16,9 +16,13 @@ def demo(img_path, exp_name):
     _, _, boxplot_dict, _ = evaluator.get_stats()
     anomaly_th = boxplot_dict['good']['upper_whisker']
 
-    for f in (SPAL_PATH / 'cables_6mm_p1_rect' / 'ev-test').files():
+    for f in (SPAL_PATH / 'cables_6mm_p1_rect' / 'test').files():
         img = cv2.imread(f)
         anomaly_perc = evaluator.model.get_code_anomaly_perc(img, anomaly_th)
+
+        if not ('good' in f.basename() and anomaly_perc > 50):
+            continue
+
         print(f, anomaly_perc)
 
         prob = anomaly_perc / 100

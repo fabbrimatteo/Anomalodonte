@@ -2,6 +2,7 @@ import cv2
 import imgaug.augmenters as iaa
 from path import Path
 
+
 NAS_PATH = Path('/nas/softechict-nas-3')
 IN_PATH = NAS_PATH / 'matteo/Datasets/Spal/cables_6mm_rect/test'
 
@@ -10,14 +11,13 @@ OUT_PATH.mkdir_p()
 
 IN_IMG_SHAPE_HW = 2048, 2448
 
+
 def main(resized_h=256, resized_w=256,
          crop_x_min=812, crop_y_min=660,
          crop_side=315):
-
     dh = IN_IMG_SHAPE_HW[0] - (crop_y_min + crop_side)
     dw = IN_IMG_SHAPE_HW[1] - (crop_x_min + crop_side)
     displ_px = 128
-
 
     croop_good_aug = iaa.Sequential([
 
@@ -72,7 +72,6 @@ def main(resized_h=256, resized_w=256,
         light_aug,
         dark_aug
     ])
-
 
     for img_path in IN_PATH.files():
         img = cv2.imread(img_path)
