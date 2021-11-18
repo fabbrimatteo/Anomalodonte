@@ -3,12 +3,10 @@ from typing import Optional
 from typing import Union
 
 import numpy as np
-import piq
 import torch
 import torch.nn as nn
 from torchvision import transforms
 
-import pre_processing
 from models.base_model import BaseModel
 from models.residual import ResidualStack
 
@@ -41,14 +39,14 @@ class SimpleAutoencoder(BaseModel):
 
         self.encoder = nn.Sequential(
             # --- downscale part: (3, H, W) -> (m, H/8, W/8)
-            nn.Conv2d(3, m // 2, kernel_size=3, stride=2, padding=1), nn.SiLU(),
-            nn.Conv2d(m // 2, m // 2, kernel_size=3, stride=2, padding=1), nn.SiLU(),
-            nn.Conv2d(m // 2, m, kernel_size=3, stride=2, padding=1), nn.SiLU(),
+            nn.Conv2d(3, m // 2, kernel_size=4, stride=2, padding=1), nn.SiLU(),
+            nn.Conv2d(m // 2, m // 2, kernel_size=4, stride=2, padding=1), nn.SiLU(),
+            nn.Conv2d(m // 2, m, kernel_size=4, stride=2, padding=1), nn.SiLU(),
             # --- residual part: (m, H/8, W/8) -> (m, H/8, W/8)
             nn.Conv2d(m, m, kernel_size=3, stride=1, padding=1),
             ResidualStack(m, m, mid_channels=m // 4, n_res_layers=n_res_layers),
             # --- last conv: (m, H/8, W/8) -> (code_channels, H/8, W/8)
-            nn.Conv2d(mid_channels, code_channels, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(mid_channels, code_channels, kernel_size=(3, 3), stride=1, padding=1),
             nn.Tanh()
         )
 
@@ -57,14 +55,11 @@ class SimpleAutoencoder(BaseModel):
             nn.Conv2d(code_channels, mid_channels, kernel_size=(3, 3), stride=1, padding=1),
             # --- residual part: (m, H/8, W/8) -> (m, H/8, W/8)
             ResidualStack(m, m, mid_channels=m // 4, n_res_layers=n_res_layers),
-            nn.Conv2d(m, m, kernel_size=3, stride=1, padding=1),
+            TConv2D(m, m, kernel_size=3, stride=1, padding=1),
             # --- upscale part: (m, H/8, W/8) -> (3, H, W)
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(m, m // 2, kernel_size=3, stride=1, padding=1), nn.SiLU(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(m // 2, m // 2, kernel_size=3, stride=1, padding=1), nn.SiLU(),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(m // 2, 3, kernel_size=3, stride=1, padding=1), nn.Sigmoid()
+            TConv2D(m, m // 2, kernel_size=4, stride=2, padding=1), nn.SiLU(),
+            TConv2D(m // 2, m // 2, kernel_size=4, stride=2, padding=1), nn.SiLU(),
+            TConv2D(m // 2, 3, kernel_size=4, stride=2, padding=1), nn.Sigmoid()
         )
 
         self.normal = torch.distributions.Normal(0, 1)
@@ -75,7 +70,7 @@ class SimpleAutoencoder(BaseModel):
         ])
 
         self.cache = {}
-        self.anomaly_th = None
+        self.stats = None
         self.cnf_dict = None
 
 
@@ -117,8 +112,33 @@ class SimpleAutoencoder(BaseModel):
         return self
 
 
-    def save_w(self, path, anomaly_th=None, cnf_dict=None):
-        # type: (str, Optional[float], Optional[Dict]) -> None
+    def get_code(self, rgb_img):
+        # type: (np.ndarray) -> torch.Tensor
+        """
+        :param rgb_img: numpy image (RGB) with shape (H, W, 3)
+        :return: encoded version of the input image -> `code`
+            >> `code` is a torch.Tensor with shape (self.code_channels, H/8, W/8)
+        """
+        x = self.pre_processing_tr(rgb_img)
+        with torch.no_grad():
+            x = x.unsqueeze(0).to(self.device)
+            code = self.encode(x)[0]
+        return code
+
+
+    def get_numpy_code(self, rgb_img):
+        # type: (np.ndarray) -> np.ndarray
+        """
+        :param rgb_img: numpy image (RGB) with shape (H, W, 3)
+        :return: encoded version of the input image -> `code`
+            >> `code` is a np.array with shape (self.code_channels, H/8, W/8)
+        """
+        code = self.get_code(rgb_img)
+        return code.cpu().numpy()
+
+
+    def save_w(self, path, test_stats=None, cnf_dict=None):
+        # type: (str, Optional[Dict], Optional[Dict]) -> None
         """
         save model weights at the specified path
         """
@@ -129,7 +149,7 @@ class SimpleAutoencoder(BaseModel):
             'code_channels': self.code_channels,
             'code_h': self.code_h,
             'code_w': self.code_w,
-            'anomaly_th': anomaly_th,
+            'test_stats': test_stats,
             'cnf_dict': cnf_dict
         }
         torch.save(__state, path)
@@ -164,12 +184,7 @@ class SimpleAutoencoder(BaseModel):
         )
         autoencoder.load_state_dict(pth_dict['state_dict'])
         autoencoder.cnf_dict = pth_dict['cnf_dict']
-
-        try:
-            autoencoder.anomaly_th = pth_dict['anomaly_th']
-        except KeyError:
-            print('WARNING: you are using an old PTH file!')
-            autoencoder.anomaly_th = None
+        autoencoder.stats = pth_dict['test_stats']
 
         if mode == 'eval':
             autoencoder.requires_grad(False)
@@ -178,104 +193,44 @@ class SimpleAutoencoder(BaseModel):
         return autoencoder.to(device)
 
 
-    def get_anomaly_score(self, x, score_function):
-        # type: (torch.Tensor, str) -> torch.Tensor
-        """
-        Returns the anomaly scores of the input batch `x`
-        w.r.t. the specified score function.
-
-        The score function can be:
-        >> 'MSE_LOSS': MSE between target `x` and reconstruction `d(e(x))`
-        >> 'MS_SSIM_LOSS':  multi-scale structural similarity loss
-        between target `x` and reconstruction `d(e(x))`
-        >> 'CODE_MSE_LOSS': MSE between target code `e(x)` and
-        reconstruction code`e(d(e(x)))`
-
-        :param x: batch of input images with shape (B, C, H, W)
-        :param score_function: The score function can be:
-            >> 'MSE_LOSS': MSE between `x` and reconstruction `d(e(x))`
-            >> 'MS_SSIM_LOSS':  multi-scale structural similarity loss
-                between target `x` and reconstruction `d(e(x))`
-            >> 'CODE_MSE_LOSS': MSE between target code `e(x)` and
-                reconstruction code`e(d(e(x)))`
-
-        :return: anomaly scores -> tensor with shape (B,)
-            >> (one score for each batch element)
-        """
+    def get_code_anomaly_score(self, x):
+        # type: (torch.Tensor) -> torch.Tensor
 
         # backup function to restore the working mode after method call
         backup_function = self.train if self.training else self.eval
 
-        x = x.to(self.device)
-        code_true = self.encode(x, code_noise=None)
-        x_pred = self.decode(code_true)
-
         self.eval()
         with torch.no_grad():
+            code_true = self.encode(x, code_noise=None)
+            x_pred = self.decode(code_true)
+            code_pred = self.encode(x_pred, code_noise=None)
 
-            if score_function == 'CODE_MSE_LOSS':
-                code_pred = self.encode(x_pred, code_noise=None)
-                score = ((code_pred - code_true) ** 2).mean([1, 2, 3])
-
-            elif score_function == 'MSE_LOSS':
-                x = nn.MSELoss(reduction='none')(x_pred, x)
-                score = x.mean((1, 2, 3))
-
-            elif score_function == 'MS_SSIM_LOSS':
-                ssim_f = piq.MultiScaleSSIMLoss(reduction='none')
-                score = ssim_f(x_pred, x)
-
-            else:
-                raise ValueError(f'[!] unknown score function '
-                                 f'{score_function}')
+            # MSE with aggregation (mean) on (C, H, W,)
+            # >> code_error.shape = (<batch_size>,)
+            code_error = ((code_pred - code_true) ** 2).mean([1, 2, 3])
 
         # restore previous working mode (train/eval)
         backup_function()
 
-        return score
+        return code_error
 
 
-    def get_code_anomaly_perc(self, img, anomaly_th=None, max_val=100):
-        # type: (np.ndarray, float, Optional[int]) -> float
-        """
-        :param img:
-        :param anomaly_th:
-        :return:
-        """
+    def get_code_anomaly_perc(self, x, stats=None):
+        # type: (torch.Tensor, Optional[Dict]) -> float
 
-        if anomaly_th is None:
-            assert self.anomaly_th is not None, \
-                f'one of `anomaly_th` and `self.anomaly_th` ' \
-                f'must not be `None`'
+        if stats is not None:
+            self.stats = stats
+        assert self.stats is not None, \
+            'you need to build the anomaly_th dictionary for this model ' \
+            'before using the `get_code_anomaly_perc` method, ' \
+            'or you can pass the anomaly_th dictionary as input'
 
-        # ---- pre-processing transformations
-        # (1) crop if needed
-        # (2) resize if needed
-        # (3) convert from BGR to RGB
-        # (4) convert from `np.ndarray` to `torch.Tensor`
-        pre_proc_tr = pre_processing.PreProcessingTr(
-            resized_h=self.cnf_dict['resized_h'],
-            resized_w=self.cnf_dict['resized_w'],
-            crop_x_min=self.cnf_dict['crop_x_min'],
-            crop_y_min=self.cnf_dict['crop_y_min'],
-            crop_side=self.cnf_dict['crop_side'],
-            to_tensor=True
-        )
-
-        x = pre_proc_tr(img)
-        x = x.unsqueeze(0).to(self.device)
-
-        anomaly_score = self.get_anomaly_score(x, 'CODE_MSE_LOSS').item()
-
-        # we want an image with `anomaly_score == anomaly_th`
-        # to have an anomaly percentage of 50%
-        anomaly_prob = anomaly_score / anomaly_th
-        anomaly_prec = (anomaly_prob * 100) - 50
-
-        if max_val is None:
-            return max(0, anomaly_prec)
+        anomaly_score = self.get_code_anomaly_score(x).item()
+        if anomaly_score < self.stats['good']['q0.75']:
+            anomaly_perc = 0
         else:
-            return float(np.clip(anomaly_prec, 0, max_val))
+            anomaly_perc = anomaly_score / (2 * self.stats['good']['w1'])
+        return min(anomaly_perc, 1)
 
 
 # ---------
@@ -288,7 +243,7 @@ def main():
 
     model = SimpleAutoencoder(n_res_layers=2, code_channels=8, code_h=8, code_w=8).to(device)
 
-    model.get_anomaly_score(x)
+    model.get_code_anomaly_score(x)
     y = model.forward(x)
     code = model.encode(x)
 

@@ -119,7 +119,7 @@ class Conf(object):
         self.code_w = y.get('CODE_W', None)  # type: Optional[int]
         self.code_noise = y.get('CODE_NOISE', 0.25)  # type: float
         self.ds_path = y.get('DS_PATH', None)  # type: str
-        self.blur_prob = y.get('BLUR_PROB', 0.0)  # type: float
+        self.data_aug = y.get('DATA_AUG', False)  # type: bool
 
         # pre processing params
         self.resized_h = y.get('RESIZED_H', 256)  # type: int

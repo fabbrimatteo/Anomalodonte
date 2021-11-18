@@ -11,6 +11,7 @@ import numpy as np
 import torch
 import torchvision
 from torch.utils.data import Dataset
+from imgaug import augmenters as iaa
 
 from conf import Conf
 from pre_processing import PreProcessingTr
@@ -54,6 +55,13 @@ class SpalDS(Dataset):
         )
         # (4) from array (H,W,C) in [0,255] to tensor (C,H,W) in [0,1]
         self.to_tensor = torchvision.transforms.ToTensor()
+
+        self.cdrop = iaa.SomeOf((1, 3), [
+            iaa.CoarseSalt(0.04, size_percent=(0.1, 0.2)),
+            iaa.CoarseSalt(0.04, size_percent=(0.1, 0.2), per_channel=True),
+            iaa.PerspectiveTransform((0.03, 0.1)),
+            iaa.SaltAndPepper(p=0.2, per_channel=True),
+        ], random_order=True)
 
         t0 = time.time()
         if mode == 'train':
@@ -111,8 +119,15 @@ class SpalDS(Dataset):
         label = self.labels[i]
 
         # `x` & `y` -> shape (C,H,W) and values in [0,1] (float)
-        x = self.to_tensor(img)
-        y = x
+        if self.mode == 'train' and self.cnf.data_aug:
+            x = self.cdrop.augment_image(img)
+            # cv2.imshow('', x)
+            # cv2.waitKey()
+            x = self.to_tensor(x)
+        else:
+            x = self.to_tensor(img)
+
+        y = self.to_tensor(img)
 
         return x, y, label
 
@@ -146,8 +161,9 @@ class SpalDS(Dataset):
 
 
 def main():
-    cnf = Conf(exp_name='a5_bis')
-    ds = SpalDS(cnf=cnf, mode='test')
+    cnf = Conf(exp_name='a5_noise_new')
+    cnf.data_aug = True
+    ds = SpalDS(cnf=cnf, mode='train')
     for i in range(len(ds)):
         x, y, label = ds[i]
         print(x.shape, y.shape, label)

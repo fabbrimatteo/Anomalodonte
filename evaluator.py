@@ -3,7 +3,7 @@ import matplotlib
 
 matplotlib.use('TkAgg')
 import numpy as np
-from models.autoencoder5 import SimpleAutoencoder
+from models.autoencoder import SimpleAutoencoder
 from torch.utils.data import DataLoader
 from typing import Dict
 from conf import Conf
@@ -133,4 +133,4 @@ def main(exp_name, mode):
 
 
 if __name__ == '__main__':
-    main(exp_name='a5_noise_new', mode='test')
+    main(exp_name='a5_noise', mode='test')

@@ -3,11 +3,12 @@
 
 from time import time
 
-import numpy as np
-
 # this MUST be imported before `import torch`
 from torch.utils.tensorboard import SummaryWriter
 
+import numpy as np
+import piq
+from piq import DSSLoss
 import torch
 import torchvision as tv
 from torch import optim
@@ -18,7 +19,7 @@ import roc_utils
 from conf import Conf
 from dataset.spal_fake_ds import SpalDS
 from evaluator import Evaluator
-from models.autoencoder5 import SimpleAutoencoder
+from models.autoencoder import SimpleAutoencoder
 from models.dd_loss import DDLoss
 from progress_bar import ProgressBar
 
@@ -33,19 +34,22 @@ class Trainer(object):
         # init train loader
         training_set = SpalDS(cnf, mode='train')
         self.train_loader = DataLoader(
-            dataset=training_set, batch_size=cnf.batch_size, num_workers=0,
+            dataset=training_set, batch_size=cnf.batch_size, num_workers=4,
             worker_init_fn=training_set.wif, shuffle=True, pin_memory=True,
         )
 
         # init test loader
         test_set = SpalDS(cnf, mode='test')
         self.test_loader = DataLoader(
-            dataset=test_set, batch_size=cnf.batch_size, num_workers=0,
+            dataset=test_set, batch_size=cnf.batch_size, num_workers=1,
             worker_init_fn=test_set.wif_test, shuffle=False, pin_memory=False,
         )
 
         # init model
-        self.model = SimpleAutoencoder(code_channels=cnf.code_channels, code_h=cnf.code_h, code_w=cnf.code_w)
+        self.model = SimpleAutoencoder(
+            code_channels=cnf.code_channels,
+            code_h=cnf.code_h, code_w=cnf.code_w
+        )
         self.model = self.model.to(cnf.device)
 
         # init optimizer
@@ -63,13 +67,20 @@ class Trainer(object):
         self.patience = self.cnf.max_patience
 
         # init progress bar
-        self.progress_bar = ProgressBar(max_step=self.log_freq, max_epoch=self.cnf.epochs)
+        self.progress_bar = ProgressBar(
+            max_step=self.log_freq, max_epoch=self.cnf.epochs
+        )
 
         # possibly load checkpoint
         self.load_ck()
 
         if self.cnf.loss_fn == 'L1+MS_SSIM+VGG':
-            self.loss_fn = DDLoss(mse_w=10, ssim_w=3, vgg_w=0.00001, device=cnf.device)
+            self.loss_fn = DDLoss(
+                mse_w=10, ssim_w=3, vgg_w=0.00001,
+                device=cnf.device
+            )
+        elif self.cnf.loss_fn == 'DSS':
+            self.loss_fn = piq.DISTS()
         else:
             self.loss_fn = torch.nn.MSELoss()
 
@@ -113,6 +124,8 @@ class Trainer(object):
 
         times = []
         train_losses = []
+        cmm_losses = []
+        div_losses = []
         for step, sample in enumerate(self.train_loader):
             t = time()
 
@@ -121,8 +134,21 @@ class Trainer(object):
             x, y_true, _ = sample
             x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
 
-            y_pred = self.model.forward(x, code_noise=self.cnf.code_noise)
-            loss = self.loss_fn(y_pred, y_true)
+            code_true = self.model.encode(y_true, self.cnf.code_noise)
+            y_pred = self.model.decode(code_true)
+            code_pred = self.model.encode(y_pred, self.cnf.code_noise)
+
+            div_loss = torch.tensor(0).to(self.cnf.device)
+            if self.cnf.data_aug:
+                rotten_code_pred = self.model.encode(x)
+                c = torch.nn.MSELoss()(rotten_code_pred, code_true)
+                div_loss = 1 - torch.nn.Sigmoid()(10 * c)
+            div_losses.append(div_loss.item())
+
+            cmm_loss = torch.nn.MSELoss()(code_pred, code_true)
+            cmm_losses.append(cmm_loss.item())
+            loss = self.loss_fn(y_pred, y_true) + cmm_loss + div_loss
+
             loss.backward()
             train_losses.append(loss.item())
 
@@ -130,15 +156,22 @@ class Trainer(object):
 
             # print an incredible progress bar
             times.append(time() - t)
-            if self.cnf.log_each_step or (not self.cnf.log_each_step and self.progress_bar.progress == 1):
+            done = (not self.cnf.log_each_step) \
+                   and self.progress_bar.progress == 1
+            if self.cnf.log_each_step or done:
                 print(f'\r{self.progress_bar} '
-                      f'│ Loss: {np.mean(train_losses):.6f} '
+                      f'│ Loss: {np.mean(train_losses):.4f} '
+                      f'│ *: ({np.mean(cmm_losses):.4f}, '
+                      f'{np.mean(div_losses):.4f}) '  
                       f'│ ↯: {1 / np.mean(times):5.2f} step/s', end='')
             self.progress_bar.inc()
 
         # log average loss of this epoch
-        mean_epoch_loss = np.mean(train_losses)
-        self.sw.add_scalar(tag='train_loss', scalar_value=mean_epoch_loss, global_step=self.epoch)
+        mean_loss = np.mean(train_losses)
+        self.sw.add_scalar(
+            tag='train_loss', global_step=self.epoch,
+            scalar_value=mean_loss
+        )
 
         # log epoch duration
         print(f' │ T: {time() - start_time:.2f} s')
