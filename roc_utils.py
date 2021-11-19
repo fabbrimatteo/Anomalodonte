@@ -1,28 +1,15 @@
 from typing import Dict
+from typing import Union
 
 import numpy as np
-from matplotlib import pyplot as plt
 import sklearn
+from matplotlib import pyplot as plt
 from sklearn import metrics
+
 import utils
 
-def draw_boxplot(good_scores, bad_scores):
-    plt.figure(figsize=(8, 4), dpi=128)
-    flierprops = dict(marker='o', markerfacecolor='green', markeredgecolor='none')
-    # draw the actual boxplot with the 2 boxes: "good" and "bad"
-    data = [bad_scores.tolist(), good_scores.tolist()]
-    plt.boxplot(
-        data,
-        showfliers=True, medianprops={'color': '#9b59b6'}, vert=False,
-        flierprops=flierprops
-    )
-    plt.xlim(0, bad_scores.max() * 1.1)
-    for i in [1, 2]:
-        plt.hlines(
-            i, 0, 10, linestyles='--', linewidth=0.5,
-            colors='#95a5a6'
-        )
-    plt.ylim(0.5, 2.5)
+
+RocDict = Dict[str, Union[np.ndarray, float]]
 
 
 def get_ad_rates(anomaly_scores, anomaly_th, labels_true):
@@ -91,6 +78,19 @@ def get_ad_rates(anomaly_scores, anomaly_th, labels_true):
 
 
 def get_roc_dict(anomaly_scores, labels_true):
+    # type: (np.ndarray, np.ndarray) -> RocDict
+    """
+    :param anomaly_scores: sequence of anomaly scores;
+        >> 1 value (float) for each sample
+        >> anomaly_scores[i] is the anomaly score of the i-anomaly_th sample
+    :param labels_true: sequence of GT labels;
+        >> 1 value (str: "good" or "bad") for each sample
+        >> labels_true[i] is the label of the i-anomaly_th sample
+    :return: `roc_dict` -> dictionary with the following keys
+        >> "tpr_list": list of TP rates (one for each possible threshold)
+        >> "fpr_list": list of FP rates (one for each possible threshold)
+        >> "auroc": area under ROC curve; values in [0, 1]
+    """
     th_min = np.min(anomaly_scores)
     th_max = np.max(anomaly_scores)
     th_range = th_max - th_min
@@ -113,8 +113,8 @@ def get_roc_dict(anomaly_scores, labels_true):
     auroc = sklearn.metrics.auc(fpr_list, tpr_list)
 
     roc_dict = {
-        'tpr_list': tpr_list,
-        'fpr_list': fpr_list,
+        'tpr_list': np.ndarray(tpr_list),
+        'fpr_list': np.ndarray(fpr_list),
         'auroc': auroc
     }
 
@@ -122,7 +122,7 @@ def get_roc_dict(anomaly_scores, labels_true):
 
 
 def plt_rocplot(roc_dict):
-
+    # type: (RocDict) -> np.ndarray
     fpr_list = roc_dict['fpr_list']
     tpr_list = roc_dict['tpr_list']
 
@@ -163,8 +163,8 @@ def debug():
     r_min = points[1]
     r_max = points[2]
     print(points)
-    #draw_boxplot(goods_scores, bads_scores)
-    #plot_roc(anomaly_scores, labels_true)
+    # draw_boxplot(goods_scores, bads_scores)
+    # plot_roc(anomaly_scores, labels_true)
 
 
 if __name__ == '__main__':

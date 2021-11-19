@@ -1,10 +1,17 @@
-import numpy as np
 from typing import Dict
+from typing import Union
+
+import numpy as np
 from matplotlib import pyplot as plt
+
 import utils
 
+
+BoxplotDict = Dict[str, Dict[str, Union[float, np.ndarray]]]
+
+
 def get_boxplot_dict(scores, labels_true):
-    # type: (np.ndarray, np.ndarray) -> Dict[str, Dict[str, ...]]
+    # type: (np.ndarray, np.ndarray) -> BoxplotDict
 
     gb_scores = {
         'good': scores[labels_true == 'good'],
@@ -39,7 +46,13 @@ def get_boxplot_dict(scores, labels_true):
     return boxplot_dict
 
 
+def get_anomaly_th(boxplot_dict):
+    # type: (BoxplotDict) -> float
+    return boxplot_dict['good']['upper_whisker']
+
+
 def plt_boxplot(boxplot_dict):
+    # type: (BoxplotDict) -> np.ndarray
     fig = plt.figure(figsize=(8, 4), dpi=128)
 
     # draw a solid red line for the anomaly threshold,
