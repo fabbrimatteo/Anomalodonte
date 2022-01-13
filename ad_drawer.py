@@ -48,6 +48,20 @@ def show_anomaly(img, perc, label=''):
         color=(255, 255, 255), thickness=2
     )
 
+    cv2.putText(
+        img=bck, text=label,
+        org=(int(round(1.25 * pad)), 2 * pad),
+        fontFace=font, fontScale=0.75,
+        color=(0, 0, 0), thickness=6
+    )
+
+    cv2.putText(
+        img=bck, text=label,
+        org=(int(round(1.25 * pad)), 2 * pad),
+        fontFace=font, fontScale=0.75,
+        color=(255, 255, 255), thickness=2
+    )
+
     cv2.imshow(label, bck)
     cv2.waitKey()
     cv2.destroyWindow(label)

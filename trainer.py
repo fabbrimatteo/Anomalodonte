@@ -80,7 +80,7 @@ class Trainer(object):
                 device=cnf.device
             )
         elif self.cnf.loss_fn == 'DSS':
-            self.loss_fn = piq.DISTS()
+            self.loss_fn = piq.DSSLoss()
         else:
             self.loss_fn = torch.nn.MSELoss()
 

@@ -78,6 +78,8 @@ class SimpleAutoencoder(BaseModel):
         self.anomaly_th = None
         self.cnf_dict = None
 
+        self.kaiming_init(activation='LeakyReLU')
+
 
     def encode(self, x, code_noise=None):
         # type: (torch.Tensor, Optional[float]) -> torch.Tensor

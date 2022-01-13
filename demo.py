@@ -28,6 +28,6 @@ def demo(in_dir_path, exp_name):
 
 if __name__ == '__main__':
     demo(
-        exp_name='a5_noise',
+        exp_name='exp-02',
         in_dir_path=SPAL_PATH / 'cables_6mm_p1_rect' / 'test'
     )

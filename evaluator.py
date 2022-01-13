@@ -133,4 +133,4 @@ def main(exp_name, mode):
 
 
 if __name__ == '__main__':
-    main(exp_name='a5_noise', mode='test')
+    main(exp_name='exp-02', mode='test')
