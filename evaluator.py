@@ -94,7 +94,7 @@ class Evaluator(object):
 
         # build `sol_dict`, that contains the statistics
         # relating to the chosen solution
-        anomaly_th = boxplot_dict['good']['upper_whisker']
+        anomaly_th = bp_utils.get_anomaly_th(boxplot_dict)
         sol_dict = roc_utils.get_ad_rates(all_scores, anomaly_th, labels_true)
 
         return scores_dict, sol_dict, boxplot_dict, roc_dict
@@ -115,7 +115,7 @@ def main(exp_name, mode):
 
     boxplot = bp_utils.plt_boxplot(boxplot_dict)
     out_path = cnf.exp_log_path / f'{pref}_boxplot.png'
-    anomaly_th = boxplot_dict['good']['upper_whisker']
+    anomaly_th = bp_utils.get_anomaly_th(boxplot_dict)
     cv2.imwrite(out_path, boxplot[:, :, ::-1])
 
     rocplot = roc_utils.plt_rocplot(roc_dict)
