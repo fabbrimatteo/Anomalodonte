@@ -6,7 +6,7 @@ from conf import Conf
 from evaluator import Evaluator
 
 
-SPAL_PATH = Path('/nas/softechict-nas-3/matteo/Datasets/Spal')
+SPAL_PATH = Path('/goat-nas/Datasets/spal/spal_cuts')
 
 
 def demo(in_dir_path, exp_name):
@@ -23,11 +23,12 @@ def demo(in_dir_path, exp_name):
         print(f, anomaly_perc)
 
         prob = anomaly_perc / 100
-        ad_drawer.show_anomaly(img, prob, label=f.basename())
+        if prob > 0.95:
+            ad_drawer.show_anomaly(img, prob, label=f.basename())
 
 
 if __name__ == '__main__':
     demo(
-        exp_name='exp-02',
-        in_dir_path=SPAL_PATH / 'cables_6mm_p1_rect' / 'test'
+        exp_name='mar2022',
+        in_dir_path=SPAL_PATH / 'train' / 'cam_1'
     )

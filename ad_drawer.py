@@ -3,9 +3,9 @@ import numpy as np
 
 
 def bar(img, x_min, y_min, h, w, color):
-    img = cv2.rectangle(img, (x_min, y_min), (x_min + w, y_min + h), color=color, thickness=-1)
-    img = cv2.circle(img, center=(x_min, y_min + h // 2), radius=(h // 2), color=color, thickness=-1)
-    img = cv2.circle(img, center=(x_min + w, y_min + h // 2), radius=(h // 2), color=color, thickness=-1)
+    img = cv2.rectangle(img, (x_min, y_min), (x_min + w, y_min + h), color=color, thickness=-1, lineType=cv2.LINE_AA)
+    img = cv2.circle(img, center=(x_min, y_min + h // 2), radius=(h // 2), color=color, thickness=-1, lineType=cv2.LINE_AA)
+    img = cv2.circle(img, center=(x_min + w, y_min + h // 2), radius=(h // 2), color=color, thickness=-1, lineType=cv2.LINE_AA)
     return img
 
 
@@ -45,21 +45,24 @@ def show_anomaly(img, perc, label=''):
         img=bck, text=text,
         org=(cx - dx, 2 * pad + barh // 2 + h + dy),
         fontFace=font, fontScale=1,
-        color=(255, 255, 255), thickness=2
+        color=(255, 255, 255), thickness=2,
+        lineType=cv2.LINE_AA
     )
 
     cv2.putText(
         img=bck, text=label,
         org=(int(round(1.25 * pad)), 2 * pad),
         fontFace=font, fontScale=0.75,
-        color=(0, 0, 0), thickness=6
+        color=(0, 0, 0), thickness=6,
+        lineType=cv2.LINE_AA
     )
 
     cv2.putText(
         img=bck, text=label,
         org=(int(round(1.25 * pad)), 2 * pad),
         fontFace=font, fontScale=0.75,
-        color=(255, 255, 255), thickness=2
+        color=(255, 255, 255), thickness=2,
+        lineType=cv2.LINE_AA
     )
 
     cv2.imshow(label, bck)

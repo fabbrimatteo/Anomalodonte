@@ -63,7 +63,7 @@ class SiftAligner(object):
         # ==> keep only the strongest matches
         good_matches = []
         for best_match, second_best_match in matches:
-            if best_match.distance < 0.75 * second_best_match.distance:
+            if best_match.distance < 0.50 * second_best_match.distance:
                 good_matches.append(best_match)
 
         # if you have found enough matches, calculate the homography matrix

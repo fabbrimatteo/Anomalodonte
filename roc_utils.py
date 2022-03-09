@@ -58,13 +58,13 @@ def get_ad_rates(anomaly_scores, anomaly_th, labels_true):
     # compute true-positive-rate, i.e.:
     # number of correctly detected anomalies
     tp = matches[labels_true == 'bad'].sum()  # type: int
-    tpr = tp / n_bad
+    tpr = float(tp / n_bad)
 
     # compute false-positive-rate, i.e.:
     # number of samples erroneously classified as anomalous
     # (label_pred="bad") even though they are not (label_true="good")
     fp = errors[labels_true == 'good'].sum()  # type: int
-    fpr = fp / n_good
+    fpr = float(fp / n_good)
 
     rates_dict = {
         'tpr': tpr,
@@ -113,8 +113,8 @@ def get_roc_dict(anomaly_scores, labels_true):
     auroc = sklearn.metrics.auc(fpr_list, tpr_list)
 
     roc_dict = {
-        'tpr_list': np.ndarray(tpr_list),
-        'fpr_list': np.ndarray(fpr_list),
+        'tpr_list': np.array(tpr_list),
+        'fpr_list': np.array(fpr_list),
         'auroc': auroc
     }
 

@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 import boxplot_utils
 import roc_utils
 from conf import Conf
-from dataset.spal_fake_ds import SpalDS
+from dataset.spal_ds import SpalDS
 from evaluator import Evaluator
 from models.autoencoder import SimpleAutoencoder
 from models.dd_loss import DDLoss
@@ -63,7 +63,7 @@ class Trainer(object):
 
         # starting values
         self.epoch = 0
-        self.best_test_accuracy = None
+        self.best_test_acc = None
         self.patience = self.cnf.max_patience
 
         # init progress bar
@@ -98,7 +98,7 @@ class Trainer(object):
             self.model.load_state_dict(ck['model'])
             self.optimizer.load_state_dict(ck['optimizer'])
             self.patience = ck['patience']
-            self.best_test_accuracy = ck['best_test_accuracy']
+            self.best_test_acc = ck['best_test_accuracy']
 
 
     def save_ck(self):
@@ -109,7 +109,7 @@ class Trainer(object):
             'epoch': self.epoch,
             'model': self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
-            'best_test_accuracy': self.best_test_accuracy,
+            'best_test_accuracy': self.best_test_acc,
             'patience': self.patience
         }
         torch.save(ck, self.log_path / 'training.ck')
@@ -220,14 +220,20 @@ class Trainer(object):
             # draw results for this step in a 2 rows grid:
             # row #1: predicted_output (y_pred)
             # row #2: target (y_true)
-            if step % 16 == 0:
+            if step % 8 == 0:
                 grid = torch.cat([y_pred, y_true], dim=0)
-                grid = tv.utils.make_grid(grid, normalize=True, value_range=(0, 1), nrow=x.shape[0])
-                self.sw.add_image(tag=f'results_{step}', img_tensor=grid, global_step=self.epoch)
+                grid = tv.utils.make_grid(
+                    grid, normalize=True,
+                    value_range=(0, 1), nrow=x.shape[0]
+                )
+                self.sw.add_image(
+                    tag=f'results_{step}', img_tensor=grid,
+                    global_step=self.epoch
+                )
 
         # save best model
-        if self.best_test_accuracy is None or accuracy > self.best_test_accuracy:
-            self.best_test_accuracy = accuracy
+        if self.best_test_acc is None or accuracy > self.best_test_acc:
+            self.best_test_acc = accuracy
             self.patience = self.cnf.max_patience
             anomaly_th = boxplot_dict['good']['upper_whisker']
             self.model.save_w(
@@ -244,10 +250,27 @@ class Trainer(object):
               f' │ AUROC: {100 * auroc:.2f}%'
               f' │ patience: {self.patience}'
               f' │ T: {time() - t:.2f} s')
-        self.sw.add_scalar(tag='test_loss', scalar_value=np.mean(test_losses), global_step=self.epoch)
-        self.sw.add_scalar(tag='accuracy', scalar_value=100 * accuracy, global_step=self.epoch)
-        self.sw.add_scalar(tag='auroc', scalar_value=100 * auroc, global_step=self.epoch)
-        self.sw.add_scalar(tag='patience', scalar_value=self.patience, global_step=self.epoch)
+
+
+        self.sw.add_scalar(
+            tag='test_loss', scalar_value=np.mean(test_losses),
+            global_step=self.epoch
+        )
+
+        self.sw.add_scalar(
+            tag='accuracy', scalar_value=100 * accuracy,
+            global_step=self.epoch
+        )
+
+        self.sw.add_scalar(
+            tag='auroc', scalar_value=100 * auroc,
+            global_step=self.epoch
+        )
+
+        self.sw.add_scalar(
+            tag='patience', scalar_value=self.patience,
+            global_step=self.epoch
+        )
 
         if self.patience == 0:
             print('\n--------')

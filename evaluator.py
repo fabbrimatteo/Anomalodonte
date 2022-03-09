@@ -7,7 +7,7 @@ from models.autoencoder import SimpleAutoencoder
 from torch.utils.data import DataLoader
 from typing import Dict
 from conf import Conf
-from dataset.spal_fake_ds import SpalDS
+from dataset.spal_ds import SpalDS
 from typing import Tuple
 import roc_utils
 import boxplot_utils as bp_utils
@@ -133,4 +133,4 @@ def main(exp_name, mode):
 
 
 if __name__ == '__main__':
-    main(exp_name='exp-02', mode='test')
+    main(exp_name='mar2022', mode='test')

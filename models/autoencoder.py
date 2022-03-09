@@ -255,12 +255,13 @@ class SimpleAutoencoder(BaseModel):
         # (2) resize if needed
         # (3) convert from BGR to RGB
         # (4) convert from `np.ndarray` to `torch.Tensor`
+        # TODO: change this
         pre_proc_tr = pre_processing.PreProcessingTr(
-            resized_h=self.cnf_dict['resized_h'],
-            resized_w=self.cnf_dict['resized_w'],
-            crop_x_min=self.cnf_dict['crop_x_min'],
-            crop_y_min=self.cnf_dict['crop_y_min'],
-            crop_side=self.cnf_dict['crop_side'],
+            resized_h=256,  # self.cnf_dict['resized_h'],
+            resized_w=256,  # self.cnf_dict['resized_w'],
+            crop_x_min=0,  # self.cnf_dict['crop_x_min'],
+            crop_y_min=0,  # self.cnf_dict['crop_y_min'],
+            crop_side=256,  # self.cnf_dict['crop_side'],
             to_tensor=True
         )
 

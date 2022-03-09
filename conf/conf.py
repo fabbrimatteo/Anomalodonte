@@ -120,13 +120,14 @@ class Conf(object):
         self.code_noise = y.get('CODE_NOISE', 0.25)  # type: float
         self.ds_path = y.get('DS_PATH', None)  # type: str
         self.data_aug = y.get('DATA_AUG', False)  # type: bool
+        self.cam_id = y.get('CAM_ID', 'cam_1')  # type: str
 
         # pre processing params
         self.resized_h = y.get('RESIZED_H', 256)  # type: int
         self.resized_w = y.get('RESIZED_W', 256)  # type: int
-        self.crop_x_min = y.get('CROP_X_MIN', 812)  # type: int
-        self.crop_y_min = y.get('CROP_Y_MIN', 660)  # type: int
-        self.crop_side = y.get('CROP_SIDE', 315)  # type: int
+        self.crop_x_min = y.get('CROP_X_MIN', 0)  # type: int
+        self.crop_y_min = y.get('CROP_Y_MIN', 0)  # type: int
+        self.crop_side = y.get('CROP_SIDE', 256)  # type: int
 
         self.ds_path = Path(self.ds_path)
 
