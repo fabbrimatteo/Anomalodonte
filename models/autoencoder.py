@@ -281,6 +281,27 @@ class SimpleAutoencoder(BaseModel):
             return float(np.clip(anomaly_prec, 0, max_val))
 
 
+    def get_flat_code(self, img):
+        # type: (np.ndarray) -> torch.Tensor
+        """
+        ...
+        """
+
+        pre_proc_tr = pre_processing.PreProcessingTr(
+            resized_h=256,  # self.cnf_dict['resized_h'],
+            resized_w=256,  # self.cnf_dict['resized_w'],
+            crop_x_min=0,  # self.cnf_dict['crop_x_min'],
+            crop_y_min=0,  # self.cnf_dict['crop_y_min'],
+            crop_side=256,  # self.cnf_dict['crop_side'],
+            to_tensor=True
+        )
+
+        x = pre_proc_tr(img)
+        x = x.unsqueeze(0).to(self.device)
+        code = self.encode(x)
+        return code.cpu().numpy().reshape(-1)
+
+
 # ---------
 
 def main():

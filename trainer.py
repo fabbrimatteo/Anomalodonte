@@ -3,16 +3,14 @@
 
 from time import time
 
-# this MUST be imported before `import torch`
-from torch.utils.tensorboard import SummaryWriter
-
 import numpy as np
 import piq
-from piq import DSSLoss
 import torch
 import torchvision as tv
 from torch import optim
 from torch.utils.data import DataLoader
+# this MUST be imported before `import torch`
+from torch.utils.tensorboard import SummaryWriter
 
 import boxplot_utils
 import roc_utils
@@ -22,7 +20,7 @@ from evaluator import Evaluator
 from models.autoencoder import SimpleAutoencoder
 from models.dd_loss import DDLoss
 from progress_bar import ProgressBar
-
+from regularization import interpol_loss
 
 class Trainer(object):
 
@@ -36,6 +34,7 @@ class Trainer(object):
         self.train_loader = DataLoader(
             dataset=training_set, batch_size=cnf.batch_size, num_workers=4,
             worker_init_fn=training_set.wif, shuffle=True, pin_memory=True,
+            drop_last=True,
         )
 
         # init test loader
@@ -79,10 +78,13 @@ class Trainer(object):
                 mse_w=10, ssim_w=3, vgg_w=0.00001,
                 device=cnf.device
             )
-        elif self.cnf.loss_fn == 'DSS':
-            self.loss_fn = piq.DSSLoss()
+        elif self.cnf.loss_fn == 'L1+MS_SSIM':
+            self.loss_fn = DDLoss(
+                mse_w=10, ssim_w=3, vgg_w=0,
+                device=cnf.device
+            )
         else:
-            self.loss_fn = torch.nn.MSELoss()
+            self.loss_fn = lambda x, y: 100 * torch.nn.MSELoss()(x, y)
 
 
     def load_ck(self):
@@ -124,8 +126,7 @@ class Trainer(object):
 
         times = []
         train_losses = []
-        cmm_losses = []
-        div_losses = []
+        reg_losses = []
         for step, sample in enumerate(self.train_loader):
             t = time()
 
@@ -138,16 +139,13 @@ class Trainer(object):
             y_pred = self.model.decode(code_true)
             code_pred = self.model.encode(y_pred, self.cnf.code_noise)
 
-            div_loss = torch.tensor(0).to(self.cnf.device)
-            if self.cnf.data_aug:
-                rotten_code_pred = self.model.encode(x)
-                c = torch.nn.MSELoss()(rotten_code_pred, code_true)
-                div_loss = 1 - torch.nn.Sigmoid()(10 * c)
-            div_losses.append(div_loss.item())
+            # code regularization
+            reg_loss = torch.nn.MSELoss()(code_pred, code_true)
+            reg_losses.append(reg_loss.item())
 
-            cmm_loss = torch.nn.MSELoss()(code_pred, code_true)
-            cmm_losses.append(cmm_loss.item())
-            loss = self.loss_fn(y_pred, y_true) + cmm_loss + div_loss
+            int_loss = interpol_loss(x, self.model, self.cnf.device)
+
+            loss = self.loss_fn(y_pred, y_true) + reg_loss + int_loss
 
             loss.backward()
             train_losses.append(loss.item())
@@ -160,9 +158,8 @@ class Trainer(object):
                    and self.progress_bar.progress == 1
             if self.cnf.log_each_step or done:
                 print(f'\r{self.progress_bar} '
-                      f'│ Loss: {np.mean(train_losses):.4f} '
-                      f'│ *: ({np.mean(cmm_losses):.4f}, '
-                      f'{np.mean(div_losses):.4f}) '  
+                      f'│ Loss: {np.mean(train_losses):.5f}, '
+                      f'│ (reg: {np.mean(reg_losses):.5f}), '
                       f'│ ↯: {1 / np.mean(times):5.2f} step/s', end='')
             self.progress_bar.inc()
 
@@ -250,7 +247,6 @@ class Trainer(object):
               f' │ AUROC: {100 * auroc:.2f}%'
               f' │ patience: {self.patience}'
               f' │ T: {time() - t:.2f} s')
-
 
         self.sw.add_scalar(
             tag='test_loss', scalar_value=np.mean(test_losses),

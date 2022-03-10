@@ -139,33 +139,3 @@ def plt_rocplot(roc_dict):
     plt.close(fig)
 
     return img
-
-
-def debug():
-    N_GOOD = 256
-    N_BAD = 128
-
-    labels_true = ['good' for _ in range(N_GOOD)]
-    labels_true += ['bad' for _ in range(N_BAD)]
-    labels_true = np.array(labels_true)
-
-    goods_scores = np.random.normal(2, 0.4, (N_GOOD,)).astype(float)
-    bads_scores = np.random.normal(4, 1.1, (N_BAD,)).astype(float)
-    anomaly_scores = np.concatenate([goods_scores, bads_scores], 0)
-
-    g_min = goods_scores.min()
-    g_max = goods_scores.max()
-    b_min = bads_scores.min()
-    b_max = bads_scores.max()
-
-    points = [g_min, g_max, b_min, b_max]
-    points.sort()
-    r_min = points[1]
-    r_max = points[2]
-    print(points)
-    # draw_boxplot(goods_scores, bads_scores)
-    # plot_roc(anomaly_scores, labels_true)
-
-
-if __name__ == '__main__':
-    debug()
