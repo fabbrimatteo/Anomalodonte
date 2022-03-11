@@ -4,7 +4,6 @@
 from time import time
 
 import numpy as np
-import piq
 import torch
 import torchvision as tv
 from torch import optim
@@ -17,10 +16,12 @@ import roc_utils
 from conf import Conf
 from dataset.spal_ds import SpalDS
 from evaluator import Evaluator
+from models.ano_loss import AnoLoss
 from models.autoencoder import SimpleAutoencoder
 from models.dd_loss import DDLoss
 from progress_bar import ProgressBar
 from regularization import interpol_loss
+
 
 class Trainer(object):
 
@@ -79,10 +80,7 @@ class Trainer(object):
                 device=cnf.device
             )
         elif self.cnf.loss_fn == 'L1+MS_SSIM':
-            self.loss_fn = DDLoss(
-                mse_w=10, ssim_w=3, vgg_w=0,
-                device=cnf.device
-            )
+            self.loss_fn = AnoLoss(l1_w=10, ms_ssim_w=3)
         else:
             self.loss_fn = lambda x, y: 100 * torch.nn.MSELoss()(x, y)
 
@@ -126,7 +124,8 @@ class Trainer(object):
 
         times = []
         train_losses = []
-        reg_losses = []
+        cc_losses = []
+        int_losses = []
         for step, sample in enumerate(self.train_loader):
             t = time()
 
@@ -139,13 +138,15 @@ class Trainer(object):
             y_pred = self.model.decode(code_true)
             code_pred = self.model.encode(y_pred, self.cnf.code_noise)
 
-            # code regularization
-            reg_loss = torch.nn.MSELoss()(code_pred, code_true)
-            reg_losses.append(reg_loss.item())
+            # code commitment loss
+            cc_loss = 10 * torch.nn.MSELoss()(code_pred, code_true)
+            cc_losses.append(cc_loss.item())
 
-            int_loss = interpol_loss(x, self.model, self.cnf.device)
+            # interpolation loss
+            int_loss = 100 * interpol_loss(model=self.model, x=x)
+            int_losses.append(int_loss.item())
 
-            loss = self.loss_fn(y_pred, y_true) + reg_loss + int_loss
+            loss = self.loss_fn(y_pred, y_true) + cc_loss + int_loss
 
             loss.backward()
             train_losses.append(loss.item())
@@ -158,8 +159,8 @@ class Trainer(object):
                    and self.progress_bar.progress == 1
             if self.cnf.log_each_step or done:
                 print(f'\r{self.progress_bar} '
-                      f'│ Loss: {np.mean(train_losses):.5f}, '
-                      f'│ (reg: {np.mean(reg_losses):.5f}), '
+                      f'│ Loss: {np.mean(train_losses):.5f} '
+                      f'│ (reg: {np.mean(int_losses):.5f}) '
                       f'│ ↯: {1 / np.mean(times):5.2f} step/s', end='')
             self.progress_bar.inc()
 

@@ -122,7 +122,7 @@ class Conf(object):
         self.data_aug = y.get('DATA_AUG', False)  # type: bool
         self.cam_id = y.get('CAM_ID', 'cam_1')  # type: str
 
-        # pre processing params
+        # pre-processing params
         self.resized_h = y.get('RESIZED_H', 256)  # type: int
         self.resized_w = y.get('RESIZED_W', 256)  # type: int
         self.crop_x_min = y.get('CROP_X_MIN', 0)  # type: int

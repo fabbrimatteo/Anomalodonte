@@ -12,7 +12,7 @@ from evaluator import Evaluator
 SPAL_PATH = Path('/goat-nas/Datasets/spal/spal_cuts')
 
 
-def demo_anomaly_perc(in_dir_path, exp_name, show_if_gt=0):
+def demo_anomaly_perc(in_dir_path, exp_name, show_if_gt=0.):
     cnf = Conf(exp_name=exp_name)
     evaluator = Evaluator(cnf=cnf)
 
@@ -60,6 +60,6 @@ def demo_clustering(in_dir_path, exp_name, n_clusters=8):
 
 if __name__ == '__main__':
     demo_clustering(
-        exp_name='reg_mse',
+        exp_name='reg_up2',
         in_dir_path=SPAL_PATH / 'train' / 'cam_1',
     )
