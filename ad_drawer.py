@@ -1,15 +1,46 @@
+from typing import Tuple
+
 import cv2
 import numpy as np
 
 
-def bar(img, x_min, y_min, h, w, color):
-    img = cv2.rectangle(img, (x_min, y_min), (x_min + w, y_min + h), color=color, thickness=-1, lineType=cv2.LINE_AA)
-    img = cv2.circle(img, center=(x_min, y_min + h // 2), radius=(h // 2), color=color, thickness=-1, lineType=cv2.LINE_AA)
-    img = cv2.circle(img, center=(x_min + w, y_min + h // 2), radius=(h // 2), color=color, thickness=-1, lineType=cv2.LINE_AA)
+Color = Tuple[int, int, int]
+
+
+def draw_anomaly_bar(img, x_min, y_min, h, w, color):
+    # type: (np.ndarray, int, int, int, int, Color) -> np.ndarray
+    """
+    :param img:
+    :param x_min:
+    :param y_min:
+    :param h:
+    :param w:
+    :param color:
+    :return:
+    """
+
+    # draw actual bar (rectangle)
+    img = cv2.rectangle(
+        img, (x_min, y_min), (x_min + w, y_min + h),
+        color=color, thickness=-1, lineType=cv2.LINE_AA
+    )
+
+    # draw left end (circle) of the bar
+    img = cv2.circle(
+        img, center=(x_min, y_min + h // 2), radius=(h // 2),
+        color=color, thickness=-1, lineType=cv2.LINE_AA
+    )
+
+    # draw right end (circle) of the bar
+    img = cv2.circle(
+        img, center=(x_min + w, y_min + h // 2), radius=(h // 2),
+        color=color, thickness=-1, lineType=cv2.LINE_AA
+    )
+
     return img
 
 
-def show_anomaly(img, perc, label=''):
+def show_anomaly(img, perc, label='', plus=''):
     pad = 32
     barh = 64
 
@@ -21,7 +52,7 @@ def show_anomaly(img, perc, label=''):
     bck = np.zeros((h + pad * 3 + barh, w + pad * 2, 3), dtype=np.uint8) + np.array([43, 34, 29], dtype=np.uint8)
     bck[pad:pad + h, pad:pad + w, :] = img
 
-    bck = bar(bck, x_min=pad + barh // 2, y_min=2 * pad + h, h=barh, w=w - barh, color=(26, 20, 17))
+    bck = draw_anomaly_bar(bck, x_min=pad + barh // 2, y_min=2 * pad + h, h=barh, w=w - barh, color=(26, 20, 17))
 
     cx, cy = bck.shape[1] // 2, bck.shape[0] // 2
     barlen = max(int(round((w - barh) * perc)), (w - barh) // 8)
@@ -29,11 +60,14 @@ def show_anomaly(img, perc, label=''):
     c = get_color(perc * 100)
 
     barpad = int(round(barh * 0.12))
-    bck = bar(bck, x_min=(cx - barlen // 2), y_min=2 * pad + h + barpad, h=barh - 2 * barpad, w=barlen, color=c)
+    bck = draw_anomaly_bar(
+        bck, x_min=(cx - barlen // 2), y_min=2 * pad + h + barpad,
+        h=barh - 2 * barpad, w=barlen, color=c
+    )
 
     # setup text
     font = cv2.FONT_HERSHEY_SIMPLEX
-    text = f'{perc * 100:.0f}%'
+    text = f'{perc * 100:.0f}% {plus}'
 
     # get boundary of this text
     textsize = cv2.getTextSize(text, font, 1, 2)[0]
@@ -66,11 +100,13 @@ def show_anomaly(img, perc, label=''):
     )
 
     cv2.imshow(label, bck)
-    cv2.waitKey()
+    key = cv2.waitKey()
     cv2.destroyWindow(label)
+    return key
 
 
 def get_color(perc, min_red=80, max_green=20):
+    # type: (float, int, int) -> Color
     space = (min_red - max_green)
 
     if perc < max_green:
@@ -83,8 +119,8 @@ def get_color(perc, min_red=80, max_green=20):
     h_value = int(round(62 - mul * 62))
     hsv_color = np.array([[[h_value, 199, 214]]], dtype=np.uint8)
 
-    bgr_color = cv2.cvtColor(hsv_color, cv2.COLOR_HSV2BGR)
-    bgr_color = tuple([int(i) for i in bgr_color[0, 0]])
+    bgr_color = cv2.cvtColor(hsv_color, cv2.COLOR_HSV2BGR)[0, 0]
+    bgr_color = (int(bgr_color[0]), int(bgr_color[1]), int(bgr_color[2]))
 
     return bgr_color
 

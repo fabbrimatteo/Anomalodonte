@@ -35,7 +35,7 @@ def main(in_dir_path, out_dir_path):
                 bad_dict[k] = {'path': file, 'errors': []}
             bad_dict[k]['errors'].append(str(error_type))
 
-    # create sym-links of bad images
+    # create sym-train_sort of bad images
     for i, k in enumerate(bad_dict):
         error_list = bad_dict[k]['errors']
         error_type = ''
@@ -55,7 +55,7 @@ def main(in_dir_path, out_dir_path):
     test_files = allfiles[:n_bad]
     train_files = allfiles[n_bad:]
 
-    # create sim-links of good images
+    # create sim-train_sort of good images
     for i, file in enumerate(test_files):
         new_name = test_path / f'good_{i:04d}.png'
         print(f'ln -s \'{file.abspath()}\' \'{new_name.abspath()}\'')

@@ -133,4 +133,4 @@ def main(exp_name, mode):
 
 
 if __name__ == '__main__':
-    main(exp_name='reg_up2', mode='test')
+    main(exp_name='cam1_fc', mode='test')
