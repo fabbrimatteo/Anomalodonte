@@ -40,68 +40,78 @@ def draw_anomaly_bar(img, x_min, y_min, h, w, color):
     return img
 
 
-def show_anomaly(img, perc, label='', plus=''):
+def show_anomaly(img, anomaly_prob, header='', plus=''):
     pad = 32
-    barh = 64
+    bar_h = 64
 
     h, w, _ = img.shape
     scale_factor = 540 / w
     img = cv2.resize(img, (0, 0), fx=scale_factor, fy=scale_factor)
     h, w, _ = img.shape
 
-    bck = np.zeros((h + pad * 3 + barh, w + pad * 2, 3), dtype=np.uint8) + np.array([43, 34, 29], dtype=np.uint8)
+    # create background
+    bck = np.zeros((h + pad * 3 + bar_h, w + pad * 2, 3), dtype=np.uint8)
+    bck = bck + np.array([43, 34, 29], dtype=np.uint8)
+
+    # put the image on the background
     bck[pad:pad + h, pad:pad + w, :] = img
 
-    bck = draw_anomaly_bar(bck, x_min=pad + barh // 2, y_min=2 * pad + h, h=barh, w=w - barh, color=(26, 20, 17))
-
-    cx, cy = bck.shape[1] // 2, bck.shape[0] // 2
-    barlen = max(int(round((w - barh) * perc)), (w - barh) // 8)
-
-    c = get_color(perc * 100)
-
-    barpad = int(round(barh * 0.12))
+    # draw the background of the anomaly bar
     bck = draw_anomaly_bar(
-        bck, x_min=(cx - barlen // 2), y_min=2 * pad + h + barpad,
-        h=barh - 2 * barpad, w=barlen, color=c
+        bck, x_min=pad + bar_h // 2, y_min=2 * pad + h,
+        h=bar_h, w=w - bar_h, color=(26, 20, 17)
     )
 
-    # setup text
+    # define bar length and color based on the given anomaly perc
+    bar_len = max(int(round((w - bar_h) * anomaly_prob)), (w - bar_h) // 8)
+    bar_col = get_color(anomaly_prob * 100)
+
+    # draw the actual anomaly bar
+    bar_pad = int(round(bar_h * 0.12))
+    cx, cy = bck.shape[1] // 2, bck.shape[0] // 2
+    bck = draw_anomaly_bar(
+        bck, x_min=(cx - bar_len // 2), y_min=2 * pad + h + bar_pad,
+        h=bar_h - 2 * bar_pad, w=bar_len, color=bar_col
+    )
+
+    # define anomaly perc label
     font = cv2.FONT_HERSHEY_SIMPLEX
-    text = f'{perc * 100:.0f}% {plus}'
+    perc_label = f'{anomaly_prob * 100:.0f}% {plus}'
+    text_size_wh = cv2.getTextSize(perc_label, font, 1, 2)[0]
 
-    # get boundary of this text
-    textsize = cv2.getTextSize(text, font, 1, 2)[0]
-
-    # add text centered on image
-    dx = textsize[0] // 2
-    dy = textsize[1] // 2
+    # write perc label in the center of the anomaly bar
+    dx = text_size_wh[0] // 2
+    dy = text_size_wh[1] // 2
     cv2.putText(
-        img=bck, text=text,
-        org=(cx - dx, 2 * pad + barh // 2 + h + dy),
+        img=bck, text=perc_label,
+        org=(cx - dx, 2 * pad + bar_h // 2 + h + dy),
         fontFace=font, fontScale=1,
         color=(255, 255, 255), thickness=2,
         lineType=cv2.LINE_AA
     )
 
+    # write header text
+    # --- (1) dark outline
     cv2.putText(
-        img=bck, text=label,
+        img=bck, text=header,
         org=(int(round(1.25 * pad)), 2 * pad),
         fontFace=font, fontScale=0.75,
         color=(0, 0, 0), thickness=6,
         lineType=cv2.LINE_AA
     )
-
+    # --- (2) white text
     cv2.putText(
-        img=bck, text=label,
+        img=bck, text=header,
         org=(int(round(1.25 * pad)), 2 * pad),
         fontFace=font, fontScale=0.75,
         color=(255, 255, 255), thickness=2,
         lineType=cv2.LINE_AA
     )
 
-    cv2.imshow(label, bck)
+    cv2.imshow(header, bck)
     key = cv2.waitKey()
-    cv2.destroyWindow(label)
+    cv2.destroyWindow(header)
+
     return key
 
 

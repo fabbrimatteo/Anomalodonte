@@ -29,10 +29,7 @@ def code2img(code):
             z = np.zeros((code_chunk.shape[0], code_chunk.shape[1], 1))
             code_chunk = np.concatenate([code_chunk, z], -1)
 
-        if out is None:
-            out = code_chunk
-        else:
-            out = np.hstack((out, code_chunk))
+        out = code_chunk if out is None else np.hstack((out, code_chunk))
 
         codes.append(code_chunk)
 

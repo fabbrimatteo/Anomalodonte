@@ -34,7 +34,7 @@ def demo_anomaly_perc(mode, exp_name, show_if_gt=0.):
         prob = anomaly_perc / 100
         if prob > show_if_gt:
             print(f'$> "{img_path.basename()}": {anomaly_perc:.2f}%')
-            ad_drawer.show_anomaly(img, prob, label=img_path.basename())
+            ad_drawer.show_anomaly(img, prob, header=img_path.basename())
 
 
 def demo_clustering(mode, exp_name, n_clusters=8):
@@ -144,6 +144,6 @@ def demo_lof(mode, exp_name, n_neighbors=12):
 
 
 if __name__ == '__main__':
-    # demo_anomaly_perc(exp_name='cam2', mode='train', show_if_gt=0.95)
+    demo_anomaly_perc(exp_name='cam3', mode='train', show_if_gt=0.95)
     # demo_clustering(exp_name='cam1_fc', mode='train', n_clusters=16)
-    demo_lof(exp_name='cam3', mode='train')
+    # demo_lof(exp_name='cam3', mode='train')
