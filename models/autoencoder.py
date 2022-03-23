@@ -81,12 +81,9 @@ class SimpleAutoencoder(BaseModel):
         self.kaiming_init(activation='LeakyReLU')
 
 
-    def encode(self, x, code_noise=None):
-        # type: (torch.Tensor, Optional[float]) -> torch.Tensor
+    def encode(self, x):
+        # type: (torch.Tensor) -> torch.Tensor
         code = self.encoder(x)
-
-        if self.training and code_noise is not None:
-            code = code + code_noise * self.normal.sample(code.shape)
 
         self.cache['h'] = code.shape[2]
         self.cache['w'] = code.shape[3]
@@ -104,9 +101,9 @@ class SimpleAutoencoder(BaseModel):
         return y
 
 
-    def forward(self, x, code_noise=None):
+    def forward(self, x):
         # type: (torch.Tensor, float) -> torch.Tensor
-        code = self.encode(x, code_noise=code_noise)
+        code = self.encode(x)
         x = self.decode(code)
         return x
 

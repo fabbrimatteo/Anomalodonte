@@ -16,9 +16,8 @@ import roc_utils
 from conf import Conf
 from dataset.spal_ds import SpalDS
 from evaluator import Evaluator
+from models import SimpleAutoencoder
 from models.ano_loss import AnoLoss
-from models.autoencoder import SimpleAutoencoder
-from models.dd_loss import DDLoss
 from progress_bar import ProgressBar
 from regularization import interpol_loss
 
@@ -74,15 +73,12 @@ class Trainer(object):
         # possibly load checkpoint
         self.load_ck()
 
-        if self.cnf.loss_fn == 'L1+MS_SSIM+VGG':
-            self.loss_fn = DDLoss(
-                mse_w=10, ssim_w=3, vgg_w=0.00001,
-                device=cnf.device
-            )
-        elif self.cnf.loss_fn == 'L1+MS_SSIM':
+        if self.cnf.loss_fn == 'L1+MS_SSIM':
             self.loss_fn = AnoLoss(l1_w=10, ms_ssim_w=3)
-        else:
+        elif self.cnf.loss_fn == 'MSE':
             self.loss_fn = lambda x, y: 100 * torch.nn.MSELoss()(x, y)
+        else:
+            raise ValueError(f'unsupported loss function "{self.loss_fn}"')
 
 
     def load_ck(self):
@@ -135,9 +131,9 @@ class Trainer(object):
             x, y_true, _ = sample
             x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
 
-            code_true = self.model.encode(y_true, self.cnf.code_noise)
+            code_true = self.model.encode(y_true)
             y_pred = self.model.decode(code_true)
-            code_pred = self.model.encode(y_pred, self.cnf.code_noise)
+            code_pred = self.model.encode(y_pred)
 
             # code commitment loss
             # TODO
