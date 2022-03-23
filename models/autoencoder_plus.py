@@ -5,7 +5,7 @@ import piq
 import torch
 import torch.nn as nn
 
-import pre_processing
+import pre_processing_new as pre_processing
 from models.autoencoder_core import AutoencoderCore
 
 
@@ -119,19 +119,7 @@ class AutoencoderPlus(AutoencoderCore):
                 f'must not be `None`'
 
         # ---- pre-processing transformations
-        # (1) crop if needed
-        # (2) resize if needed
-        # (3) convert from BGR to RGB
-        # (4) convert from `np.ndarray` to `torch.Tensor`
-        # TODO: change this
-        pre_proc_tr = pre_processing.PreProcessingTr(
-            resized_h=256,  # self.cnf_dict['resized_h'],
-            resized_w=256,  # self.cnf_dict['resized_w'],
-            crop_x_min=0,  # self.cnf_dict['crop_x_min'],
-            crop_y_min=0,  # self.cnf_dict['crop_y_min'],
-            crop_side=256,  # self.cnf_dict['crop_side'],
-            to_tensor=True
-        )
+        pre_proc_tr = pre_processing.PreProcessingTr(to_tensor=True)
 
         x = pre_proc_tr(img)
         x = x.unsqueeze(0).to(self.device)

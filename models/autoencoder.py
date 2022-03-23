@@ -206,14 +206,14 @@ class SimpleAutoencoder(BaseModel):
         backup_function = self.train if self.training else self.eval
 
         x = x.to(self.device)
-        code_true = self.encode(x, code_noise=None)
+        code_true = self.encode(x)
         x_pred = self.decode(code_true)
 
         self.eval()
         with torch.no_grad():
 
             if score_function == 'CODE_MSE_LOSS':
-                code_pred = self.encode(x_pred, code_noise=None)
+                code_pred = self.encode(x_pred)
                 score = ((code_pred - code_true) ** 2).mean([1, 2, 3])
 
             elif score_function == 'MSE_LOSS':
