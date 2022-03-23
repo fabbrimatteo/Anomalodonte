@@ -18,7 +18,7 @@ import numpy as np
 from path import Path
 from typing import Optional
 import termcolor
-import warnings
+
 
 def set_seed(seed=None):
     # type: (Optional[int]) -> int
@@ -38,14 +38,6 @@ def set_seed(seed=None):
 class Conf(object):
     HOSTNAME = socket.gethostname()
 
-    if HOSTNAME == 'shenron':
-        NAS_PATH = Path('/nas/softechict-nas-3/matteo')
-    elif HOSTNAME == 'sarah-kennedy':
-        NAS_PATH = Path('/run/user/1000/gvfs/sftp:host=shenron.ing.unimo.it,user=matteo')
-        NAS_PATH = NAS_PATH / 'nas/softechict-nas-3/matteo'
-    else:
-        NAS_PATH = Path('/nas/softechict-nas-3/matteo')
-
 
     @property
     def dict_view(self):
@@ -61,7 +53,8 @@ class Conf(object):
         # type: (str, int, str, bool) -> None
         """
         :param conf_file_path: optional path of the configuration file
-        :param seed: desired seed for the RNG; if `None`, it will be chosen randomly
+        :param seed: desired seed for the RNG;
+            >> if `None`, it will be chosen randomly
         :param exp_name: name of the experiment
         :param log: `True` if you want to log each step; `False` otherwise
         """
@@ -76,9 +69,8 @@ class Conf(object):
         print(u_str + '\n' + m_str + '\n' + b_str)
 
         # define output paths
-        self.project_log_path = Path(__file__).parent.parent.abspath() / 'log'
-        # alternative: self.project_log_path = Path(Conf.NAS_PATH / 'log' / self.project_name)
-        self.exp_log_path = self.project_log_path / exp_name  # type: Path
+        self.proj_log_path = Path(__file__).parent.parent.abspath() / 'log'
+        self.exp_log_path = self.proj_log_path / exp_name  # type: Path
 
         # set random seed
         self.seed = set_seed(seed)  # type: int
@@ -91,48 +83,48 @@ class Conf(object):
         if conf_file_path is None and tmp.exists():
             conf_file_path = tmp
 
-        # read the YAML configuation file
+        # read the YAML configuration file
         if conf_file_path is None:
             y = {}
         else:
             conf_file = open(conf_file_path, 'r')
             y = yaml.load(conf_file, Loader=yaml.Loader)
 
+        # ---------------------------------------------------
         # read configuration parameters from YAML file
         # or set their default value
+
+        # (1) training parameters
         self.lr = y.get('LR', 0.0001)  # type: float
         self.epochs = y.get('EPOCHS', 10)  # type: int
-        self.n_workers = y.get('N_WORKERS', 4)  # type: int
-        self.batch_size = y.get('BATCH_SIZE', 8)  # type: int
-        self.loss_fn = y.get('LOSS_FN', 'L1+MS_SSIM+VGG')  # type: str
-
-
-        if not 'SCORE_FN' in y:
-            warnings.warn(f'`REC_ERROR_FN` is deprecated; now it is `SCORE_FN`')
-            self.score_fn = y.get('REC_ERROR_FN', 'CODE_MSE_LOSS')  # type: str
-        else:
-            self.score_fn = y.get('SCORE_FN', 'CODE_MSE_LOSS')  # type: str
-
         self.max_patience = y.get('MAX_PATIENCE', 8)  # type: int
+
+        # (2) dataset/dataloader parameters
+        self.ds_path = y.get('DS_PATH', None)  # type: str
+        self.batch_size = y.get('BATCH_SIZE', 8)  # type: int
+        self.cam_id = y.get('CAM_ID', 'cam_1')  # type: str
+        self.n_workers = y.get('N_WORKERS', 4)  # type: int
+        self.data_aug = y.get('DATA_AUG', False)  # type: bool
+
+        # (3) loss parameters
+        self.loss_fn = y.get('LOSS_FN', 'L1+MS_SSIM')  # type: str
+        self.score_fn = y.get('SCORE_FN', 'CODE_MSE_LOSS')  # type: str
+
+        # (4) autoencoder bottleneck/code parameters
         self.code_channels = y.get('CODE_CHANNELS', 4)  # type: int
         self.code_h = y.get('CODE_H', None)  # type: Optional[int]
         self.code_w = y.get('CODE_W', None)  # type: Optional[int]
         self.code_noise = y.get('CODE_NOISE', 0.25)  # type: float
-        self.ds_path = y.get('DS_PATH', None)  # type: str
-        self.data_aug = y.get('DATA_AUG', False)  # type: bool
-        self.cam_id = y.get('CAM_ID', 'cam_1')  # type: str
+        # ---------------------------------------------------
 
-        # pre-processing params
-        self.resized_h = y.get('RESIZED_H', 256)  # type: int
-        self.resized_w = y.get('RESIZED_W', 256)  # type: int
-        self.crop_x_min = y.get('CROP_X_MIN', 0)  # type: int
-        self.crop_y_min = y.get('CROP_Y_MIN', 0)  # type: int
-        self.crop_side = y.get('CROP_SIDE', 256)  # type: int
-
-        self.ds_path = Path(self.ds_path)
-
+        # select CPU or GPU
         default_device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.device = y.get('DEVICE', default_device)  # type: str
+
+        # check if dataset exists
+        self.ds_path = Path(self.ds_path)
+        assert self.ds_path.exists(), \
+            f'`DS_PATH: "{self.ds_path.abspath()}"` does not exists'
 
 
     def write_to_file(self, out_file_path):
@@ -156,7 +148,6 @@ class Conf(object):
         for key in dw:
             value = dw[key]
             if type(value) is Path or type(value) is str:
-                value = value.replace(Conf.NAS_PATH, '$CAPRA_PATH')
                 value = termcolor.colored(value, 'yellow')
             else:
                 value = termcolor.colored(f'{value}', 'magenta')
@@ -183,7 +174,8 @@ def show_default_params():
     """
     Print default configuration parameters
     """
-    cnf = Conf(exp_name='default')
+    cnf = Conf(exp_name='cam1')
+    cnf.write_to_file('./default.yaml')
     print(f'\nDefault configuration parameters: \n{cnf}')
 
 

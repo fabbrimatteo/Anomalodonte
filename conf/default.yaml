@@ -1,25 +1,23 @@
 # training params
 LR: 0.0001
-EPOCHS: 256
-MAX_PATIENCE: 16
+EPOCHS: 128
+MAX_PATIENCE: 64
 
-# dataloader params
-N_WORKERS: 4
+# dataset/dataloader params
+DS_PATH: /goat-nas/Datasets/spal/spal_cuts
 BATCH_SIZE: 32
-DS_PATH: /home/matteo/PycharmProjects/Anomalodonte/dataset/spal_fake
+CAM_ID: cam_1
+N_WORKERS: 4
+DATA_AUG: False
 
-# model params
+# loss params
+LOSS_FN: L1+MS_SSIM
+SCORE_FN: CODE_MSE_LOSS
+
+# autoencoder bottleneck/code params
 CODE_CHANNELS: 3
-CODE_H: 32
-CODE_W: 32
-CODE_NOISE: 0.25
+CODE_H: 4
+CODE_W: 4
+CODE_NOISE: 0
 
-# pre-processing params
-RESIZED_H: 256
-RESIZED_W: 256
-CROP_X_MIN: 812
-CROP_Y_MIN: 660
-CROP_SIDE: 315
-
-# other params
 DEVICE: cuda

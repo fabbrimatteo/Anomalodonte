@@ -57,7 +57,7 @@ class Trainer(object):
 
         # init logging stuffs
         self.log_path = cnf.exp_log_path
-        print(f'tensorboard --logdir={cnf.project_log_path.abspath()}\n')
+        print(f'tensorboard --logdir={cnf.proj_log_path.abspath()}\n')
         self.sw = SummaryWriter(self.log_path)
         self.log_freq = len(self.train_loader)
 

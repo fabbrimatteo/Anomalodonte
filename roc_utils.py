@@ -26,7 +26,7 @@ def get_ad_rates(anomaly_scores, anomaly_th, labels_true):
     :param labels_true: sequence of GT labels;
         >> 1 value (str: "good" or "bad") for each sample
         >> labels_true[i] is the label of the i-anomaly_th sample
-    :return: rates dictionary, whith the following keys:
+    :return: rates dictionary, with the following keys:
         >> "TPR": true positive rate
         >> "FPR": false positive rate
         >> "TNR": true negative rate
@@ -46,13 +46,13 @@ def get_ad_rates(anomaly_scores, anomaly_th, labels_true):
     n_bad = (labels_true == 'bad').sum()
 
     # boolean array of correct predictions, i.e.:
-    # >> matches[i] is True <=> labels_pred[i] == labes_true[i]
-    # >> matches[i] is False <=> labels_pred[i] != labes_true[i]
+    # >> matches[i] is True <=> labels_pred[i] == labels_true[i]
+    # >> matches[i] is False <=> labels_pred[i] != labels_true[i]
     matches = np.array(labels_pred == labels_true, dtype=bool)
 
     # boolean array of wrong predictions, i.e.
-    # >> errors[i] is True <=> labels_pred[i] != labes_true[i]
-    # >> errors[i] is False <=> labels_pred[i] == labes_true[i]
+    # >> errors[i] is True <=> labels_pred[i] != labels_true[i]
+    # >> errors[i] is False <=> labels_pred[i] == labels_true[i]
     errors = ~matches
 
     # compute true-positive-rate, i.e.:
