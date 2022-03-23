@@ -16,7 +16,7 @@ import roc_utils
 from conf import Conf
 from dataset.spal_ds import SpalDS
 from evaluator import Evaluator
-from models import SimpleAutoencoder
+from models import Autoencoder
 from models.ano_loss import AnoLoss
 from progress_bar import ProgressBar
 from regularization import interpol_loss
@@ -45,7 +45,7 @@ class Trainer(object):
         )
 
         # init model
-        self.model = SimpleAutoencoder(
+        self.model = Autoencoder(
             code_channels=cnf.code_channels,
             code_h=cnf.code_h, code_w=cnf.code_w
         )

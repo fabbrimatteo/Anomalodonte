@@ -20,7 +20,7 @@ class AutoencoderCore(BaseModel):
         :param code_channels: number of code channels
         """
 
-        super(SimpleAutoencoder, self).__init__()
+        super().__init__()
 
         self.n_res_layer = n_res_layers
         self.mid_channels = mid_channels

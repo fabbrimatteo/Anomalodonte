@@ -3,7 +3,7 @@ import matplotlib
 
 matplotlib.use('TkAgg')
 import numpy as np
-from models.autoencoder import SimpleAutoencoder
+from models import Autoencoder
 from torch.utils.data import DataLoader
 from typing import Dict
 from conf import Conf
@@ -16,23 +16,23 @@ import boxplot_utils as bp_utils
 class Evaluator(object):
 
     def __init__(self, cnf, model=None, test_loader=None, mode='test'):
-        # type: (Conf, SimpleAutoencoder, DataLoader, str) -> None
+        # type: (Conf, Autoencoder, DataLoader, str) -> None
 
-        self.test_loader = test_loader
+        self.data_loader = test_loader
         self.model = model
         self.cnf = cnf
 
         if self.model is None:
-            self.model = SimpleAutoencoder.init_from_pth(
+            self.model = Autoencoder.init_from_pth(
                 pth_file_path=(cnf.exp_log_path / 'best.pth'),
                 device=cnf.device
             )
 
-        if self.test_loader is None:
-            test_set = SpalDS(cnf=self.cnf, mode=mode)
-            self.test_loader = DataLoader(
-                dataset=test_set, batch_size=8, num_workers=0,
-                worker_init_fn=test_set.wif_test, shuffle=False,
+        if self.data_loader is None:
+            ds = SpalDS(cnf=self.cnf, mode=mode)
+            self.data_loader = DataLoader(
+                dataset=ds, batch_size=8, num_workers=0,
+                worker_init_fn=ds.wif_test, shuffle=False,
                 pin_memory=False,
             )
 
@@ -49,7 +49,7 @@ class Evaluator(object):
         """
         all_scores = []
         labels_true = []
-        for i, sample in enumerate(self.test_loader):
+        for i, sample in enumerate(self.data_loader):
             x, _, labels = sample
 
             anomaly_scores = self.model.get_anomaly_score(
@@ -133,4 +133,4 @@ def main(exp_name, mode):
 
 
 if __name__ == '__main__':
-    main(exp_name='cam1_fc', mode='test')
+    main(exp_name='cam1', mode='test')

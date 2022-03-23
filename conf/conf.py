@@ -122,6 +122,8 @@ class Conf(object):
         self.device = y.get('DEVICE', default_device)  # type: str
 
         # check if dataset exists
+        assert self.ds_path is not None, \
+            f'`you must set `DS_PATH` in configuration file`'
         self.ds_path = Path(self.ds_path)
         assert self.ds_path.exists(), \
             f'`DS_PATH: "{self.ds_path.abspath()}"` does not exists'

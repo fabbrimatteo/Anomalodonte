@@ -7,10 +7,10 @@ from typing import Tuple
 
 import cv2
 import imgaug
-from imgaug import augmenters as iaa
 import numpy as np
 import torch
 import torchvision
+from imgaug import augmenters as iaa
 from torch.utils.data import Dataset
 
 import pre_processing
@@ -18,26 +18,19 @@ from conf import Conf
 
 
 class SpalDS(Dataset):
-    """
-    Dataset composed of pairs (x, y) in which:
-    * x: RGB image of size 128x128 representing a light blue circle (radius = 16 px)
-         on a dark background (random circle position, randomly colored dark background)
-    * y: copy of x, with the light blue circle surrounded with a red line (4 px internale stroke)
-    """
-
 
     def __init__(self, cnf, mode):
         # type: (Conf, str) -> None
         """
         :param cnf: configuration object
         :param mode: working mode
-            -> must be one of {"train", "test", "ev-test"}
-            TODO: add a comment about the meaning of each mode
+            -> must be one of {"train", "test"}
         """
         self.cnf = cnf
 
-        assert mode in ['train', 'test', 'ev-test'], \
-            'mode must be one of {"train", "test", "ev-test"}'
+        assert mode in ['train', 'test'], \
+            'mode must be one of {"train", "test"}'
+
         self.mode = mode
 
         self.imgs = []

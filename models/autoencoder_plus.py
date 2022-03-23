@@ -143,14 +143,7 @@ class AutoencoderPlus(AutoencoderCore):
         ...
         """
 
-        pre_proc_tr = pre_processing.PreProcessingTr(
-            resized_h=256,  # self.cnf_dict['resized_h'],
-            resized_w=256,  # self.cnf_dict['resized_w'],
-            crop_x_min=0,  # self.cnf_dict['crop_x_min'],
-            crop_y_min=0,  # self.cnf_dict['crop_y_min'],
-            crop_side=256,  # self.cnf_dict['crop_side'],
-            to_tensor=True
-        )
+        pre_proc_tr = pre_processing.PreProcessingTr(to_tensor=True)
 
         x = pre_proc_tr(img)
         x = x.unsqueeze(0).to(self.device)
