@@ -16,6 +16,7 @@ import roc_utils
 from conf import Conf
 from dataset.spal_ds import SpalDS
 from evaluator import Evaluator
+from lof import Loffer
 from models import Autoencoder
 from models.ano_loss import AnoLoss
 from progress_bar import ProgressBar
@@ -195,6 +196,11 @@ class Trainer(object):
         boxplot = boxplot_utils.plt_boxplot(boxplot_dict)
         rocplot = roc_utils.plt_rocplot(roc_dict)
 
+        train_dir = self.cnf.ds_path / 'train' / self.cnf.cam_id
+        test_dir = self.cnf.ds_path / 'test' / self.cnf.cam_id
+        loffer = Loffer(train_dir=train_dir, model=self.model)
+        lof_ba = loffer.evaluate()['bal_acc']
+
         # --- TENSORBOARD: boxplot
         self.sw.add_image(
             tag=f'boxplot', img_tensor=boxplot,
@@ -270,6 +276,11 @@ class Trainer(object):
 
         self.sw.add_scalar(
             tag='patience', scalar_value=self.patience,
+            global_step=self.epoch
+        )
+
+        self.sw.add_scalar(
+            tag='test_lof_ba', scalar_value=lof_ba,
             global_step=self.epoch
         )
 

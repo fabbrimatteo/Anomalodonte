@@ -40,7 +40,7 @@ def draw_anomaly_bar(img, x_min, y_min, h, w, color):
     return img
 
 
-def show_anomaly(img, anomaly_prob, header='', plus=''):
+def show_anomaly(img, anomaly_prob, header='', plus='', ret=True):
     pad = 32
     bar_h = 64
 
@@ -76,7 +76,7 @@ def show_anomaly(img, anomaly_prob, header='', plus=''):
 
     # define anomaly perc label
     font = cv2.FONT_HERSHEY_SIMPLEX
-    perc_label = f'{anomaly_prob * 100:.0f}% {plus}'
+    perc_label = f'{anomaly_prob * 100:.0f}%'
     text_size_wh = cv2.getTextSize(perc_label, font, 1, 2)[0]
 
     # write perc label in the center of the anomaly bar
@@ -107,6 +107,9 @@ def show_anomaly(img, anomaly_prob, header='', plus=''):
         color=(255, 255, 255), thickness=2,
         lineType=cv2.LINE_AA
     )
+
+    if ret:
+        return bck
 
     cv2.imshow(header, bck)
     key = cv2.waitKey()
