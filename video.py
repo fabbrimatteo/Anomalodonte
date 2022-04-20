@@ -1,5 +1,4 @@
 import os
-import string
 
 import cv2
 import numpy as np
@@ -10,8 +9,6 @@ from conf import Conf
 from eval.lof import Loffer
 from models.autoencoder_plus import AutoencoderPlus
 
-
-ST = string.digits + string.ascii_letters
 
 SPAL_PATH = Path('/goat-nas/Datasets/spal/spal_cuts')
 

@@ -11,9 +11,9 @@ class Loffer(object):
     def __init__(self, train_dir, model, n_neighbors=12):
         # type: (str, AutoencoderPlus, int) -> None
         """
-        :param train_dir:
-        :param model:
-        :param n_neighbors:
+        :param train_dir: root directory of the training set
+        :param model: model you want to evaluate
+        :param n_neighbors: neighborhood size for LOF algorithm
         """
 
         self.model = model
@@ -54,9 +54,11 @@ class Loffer(object):
     def get_anomaly_perc(self, img, max_val=100.):
         # type: (np.ndarray, float) -> float
         """
-        :param img:
-        :param max_val:
-        :return:
+        :param img: input BGR image;
+            >> shape: (H, W, 3) and values in [0, 255]
+        :param max_val: clip anomaly perc using `max_val` as upper bound
+            >> use `max_val=100` for a value in [0, 100]
+        :return: anomaly percentage
         """
 
         flat_code = self.model.get_flat_code(img)
