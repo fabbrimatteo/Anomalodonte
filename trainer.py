@@ -223,7 +223,6 @@ class Trainer(object):
 
         # save best model
         if self.best_test_acc is None or accuracy > self.best_test_acc:
-            print('new BEST', accuracy)
             self.best_test_acc = accuracy
             self.patience = self.cnf.max_patience
             self.model.save_w(
