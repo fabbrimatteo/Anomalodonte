@@ -11,11 +11,8 @@ from torch.utils.data import DataLoader
 # this MUST be imported before `import torch`
 from torch.utils.tensorboard import SummaryWriter
 
-import boxplot_utils
-from eval import roc_utils
 from conf import Conf
 from dataset.spal_ds import SpalDS
-from evaluator import Evaluator
 from lof import Loffer
 from models import Autoencoder
 from models.ano_loss import AnoLoss
@@ -121,9 +118,8 @@ class Trainer(object):
 
         times = []
         train_losses = []
-        cc_losses = []
         int_losses = []
-        std_losses = []
+        rec_losses = []
         for step, sample in enumerate(self.train_loader):
             t = time()
 
@@ -132,34 +128,27 @@ class Trainer(object):
             x, y_true, _ = sample
             x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
 
-            code_true = self.model.encode(y_true)
-            y_pred = self.model.decode(code_true)
-            code_pred = self.model.encode(y_pred)
-
-            # code commitment loss
-            # TODO
-            cc_loss = 10 * torch.nn.MSELoss()(code_pred, code_true)
-            cc_losses.append(cc_loss.item())
-
-            # # TODO
-            # std = code_pred.std(0).mean()
-            # std = torch.nn.Sigmoid()(std)
-            # std_loss = 0.1*(1 / std)
-            # std_losses.append(std_loss.item())
+            y_pred = self.model.forward(x)
 
             # interpolation loss
-            # TODO
-            int_loss = 100 * interpol_loss(model=self.model, x=x)
+            int_loss = interpol_loss(model=self.model, x=x)
             int_losses.append(int_loss.item())
 
-            loss = self.loss_fn(y_pred, y_true) + cc_loss + int_loss
+            # reconstruction loss
+            rec_loss = self.loss_fn(y_pred, y_true)
+            rec_losses.append(rec_loss.item())
 
-            loss.backward()
+            # global loss: weighted sum of reconstruction
+            # and interpolation losses
+            rec_loss = self.cnf.rec_loss_w * rec_loss
+            int_loss = self.cnf.int_loss_w * int_loss
+            loss = rec_loss + int_loss
             train_losses.append(loss.item())
 
+            loss.backward()
             self.optimizer.step(None)
 
-            # print an incredible progress bar
+            # print progress bar
             times.append(time() - t)
             done = (not self.cnf.log_each_step) \
                    and self.progress_bar.progress == 1
@@ -187,35 +176,11 @@ class Trainer(object):
         self.model.eval()
 
         t = time()
-        evaluator = Evaluator(
-            model=self.model, cnf=self.cnf,
-            test_loader=self.test_loader
-        )
-        scores_dict, sol_dict, boxplot_dict, roc_dict = evaluator.get_stats()
-
-        boxplot = boxplot_utils.plt_boxplot(boxplot_dict)
-        rocplot = roc_utils.plt_rocplot(roc_dict)
 
         train_dir = self.cnf.ds_path / 'train' / self.cnf.cam_id
         test_dir = self.cnf.ds_path / 'test' / self.cnf.cam_id
         loffer = Loffer(train_dir=train_dir, model=self.model)
         lof_ba = loffer.evaluate(test_dir=test_dir)['bal_acc']
-
-        # --- TENSORBOARD: boxplot
-        self.sw.add_image(
-            tag=f'boxplot', img_tensor=boxplot,
-            global_step=self.epoch, dataformats='HWC'
-        )
-
-        # --- TENSORBOARD: rocplot
-        self.sw.add_image(
-            tag=f'rocplot', img_tensor=rocplot,
-            global_step=self.epoch, dataformats='HWC'
-        )
-
-        accuracy = sol_dict['bal_acc']
-        auroc = roc_dict['auroc']
-        #TODO
         accuracy = lof_ba
 
         test_losses = []
@@ -224,7 +189,15 @@ class Trainer(object):
             x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
             y_pred = self.model.forward(x)
 
-            loss = self.loss_fn(y_pred, y_true)
+            # interpolation and reconstruction losses
+            int_loss = interpol_loss(model=self.model, x=x)
+            rec_loss = self.loss_fn(y_pred, y_true)
+
+            # global loss: weighted sum of reconstruction
+            # and interpolation losses
+            rec_loss = self.cnf.rec_loss_w * rec_loss
+            int_loss = self.cnf.int_loss_w * int_loss
+            loss = rec_loss + int_loss
             test_losses.append(loss.item())
 
             # draw results for this step in a 2 rows grid:
@@ -245,19 +218,15 @@ class Trainer(object):
         if self.best_test_acc is None or accuracy > self.best_test_acc:
             self.best_test_acc = accuracy
             self.patience = self.cnf.max_patience
-            anomaly_th = boxplot_dict['good']['upper_whisker']
             self.model.save_w(
                 self.log_path / 'best.pth',
                 cnf_dict=self.cnf.dict_view,
-                anomaly_th=anomaly_th
-            )
-            torch.save(None, self.log_path / 'anomaly_th.pth')
+                )
         else:
             self.patience = self.patience - 1
 
         # log test results
         print(f'\t● Bal. Acc: {100 * accuracy:.2f}%'
-              f' │ AUROC: {100 * auroc:.2f}%'
               f' │ patience: {self.patience}'
               f' │ T: {time() - t:.2f} s')
 
@@ -272,17 +241,7 @@ class Trainer(object):
         )
 
         self.sw.add_scalar(
-            tag='auroc', scalar_value=100 * auroc,
-            global_step=self.epoch
-        )
-
-        self.sw.add_scalar(
             tag='patience', scalar_value=self.patience,
-            global_step=self.epoch
-        )
-
-        self.sw.add_scalar(
-            tag='test_lof_ba', scalar_value=lof_ba,
             global_step=self.epoch
         )
 
