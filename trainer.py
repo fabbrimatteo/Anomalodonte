@@ -199,7 +199,7 @@ class Trainer(object):
         train_dir = self.cnf.ds_path / 'train' / self.cnf.cam_id
         test_dir = self.cnf.ds_path / 'test' / self.cnf.cam_id
         loffer = Loffer(train_dir=train_dir, model=self.model)
-        lof_ba = loffer.evaluate()['bal_acc']
+        lof_ba = loffer.evaluate(test_dir=test_dir)['bal_acc']
 
         # --- TENSORBOARD: boxplot
         self.sw.add_image(
@@ -215,6 +215,8 @@ class Trainer(object):
 
         accuracy = sol_dict['bal_acc']
         auroc = roc_dict['auroc']
+        #TODO
+        accuracy = lof_ba
 
         test_losses = []
         for step, sample in enumerate(self.test_loader):

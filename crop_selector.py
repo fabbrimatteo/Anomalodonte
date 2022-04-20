@@ -95,7 +95,7 @@ class CropSelector(object):
 
 
 def main():
-    CropSelector(in_path='/goat-nas/Datasets/spal/spal_refactor/train/cam_2/2022_02_02_15_48_30.bmp').run()
+    CropSelector(in_path='/goat-nas/Datasets/spal/2022_03_09/goods/2022_02_04/20220204080648_601102626722200000099704_2OK.bmp').run()
 
 
 if __name__ == '__main__':

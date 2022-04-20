@@ -108,9 +108,20 @@ def video2(mode, exp_name):
         if mode == 'train':
             label_true = 'OK'
         else:
-            label_true = 'OK' if label_true == 'good' else 'KO'
+            if label_true == 'good':
+                label_true = 'OK'
+            elif label_true == 'bad':
+                label_true = 'KO'
+            elif label_true == 'nc':
+                label_true = 'NC'
 
-        label_pred = 'OK' if anomaly_perc < 50 else 'KO'
+        if anomaly_perc < 50:
+            label_pred = 'OK'
+        elif 50 <= anomaly_perc < 120:
+            label_pred = 'KO'
+        else:
+            label_pred = 'NC'
+
         if label_pred != label_true:
             errors += 1
 
@@ -136,6 +147,4 @@ if __name__ == '__main__':
     # demo_clustering(exp_name='cam1', mode='train', n_clusters=8)
     # demo_clustering(exp_name='cam2', mode='train', n_clusters=8)
     # demo_clustering(exp_name='cam3_big', mode='train', n_clusters=8)
-    video2(mode='test', exp_name='cam1')
-    video2(mode='test', exp_name='cam2')
-    video2(mode='test', exp_name='cam3')
+    video2(mode='test', exp_name='cam2_report')

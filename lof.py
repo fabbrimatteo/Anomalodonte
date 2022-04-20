@@ -81,6 +81,9 @@ class Loffer(object):
             labels_pred.append(label_pred)
 
         labels_true = np.array(labels_true)
+
+        # TODO... handle nc
+        labels_true[labels_true == 'nc'] = 'bad'
         labels_pred = np.array(labels_pred)
 
         # number of GT samples with label "good" (non anomalous)
