@@ -1,23 +1,23 @@
 # training params
 LR: 0.0001
-EPOCHS: 4
+EPOCHS: 16
 MAX_PATIENCE: 64
 
 # dataloader params
 N_WORKERS: 4
 BATCH_SIZE: 32
 DS_PATH: '/goat-nas/Datasets/spal/spal_cuts'
-CAM_ID: 'cam_2'
+CAM_ID: 'cam_1'
 
 # loss params
 LOSS_FN: 'L1+MS_SSIM'
-SCORE_FN: 'CODE_MSE_LOSS'
+REC_LOSS_W: 1
+INT_LOSS_W: 1000
 
 # model params
 CODE_CHANNELS: 3
 CODE_H: 4
 CODE_W: 4
-CODE_NOISE: 0
 
 # other params
 DEVICE: cuda

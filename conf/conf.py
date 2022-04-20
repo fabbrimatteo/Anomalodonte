@@ -108,13 +108,13 @@ class Conf(object):
 
         # (3) loss parameters
         self.loss_fn = y.get('LOSS_FN', 'L1+MS_SSIM')  # type: str
-        self.score_fn = y.get('SCORE_FN', 'CODE_MSE_LOSS')  # type: str
+        self.rec_loss_w = y.get('REC_LOSS_W', 1)  # type: float
+        self.int_loss_w = y.get('INT_LOSS_W', 100)  # type: float
 
         # (4) autoencoder bottleneck/code parameters
         self.code_channels = y.get('CODE_CHANNELS', 4)  # type: int
         self.code_h = y.get('CODE_H', None)  # type: Optional[int]
         self.code_w = y.get('CODE_W', None)  # type: Optional[int]
-        self.code_noise = y.get('CODE_NOISE', 0.25)  # type: float
         # ---------------------------------------------------
 
         # select CPU or GPU

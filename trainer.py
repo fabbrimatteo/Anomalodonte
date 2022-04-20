@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from conf import Conf
 from dataset.spal_ds import SpalDS
-from lof import Loffer
+from eval.lof import Loffer
 from models import Autoencoder
 from models.ano_loss import AnoLoss
 from progress_bar import ProgressBar
@@ -159,10 +159,17 @@ class Trainer(object):
             self.progress_bar.inc()
 
         # log average loss of this epoch
-        mean_loss = np.mean(train_losses)
+        self.sw.add_scalar(
+            tag='rec_loss', global_step=self.epoch,
+            scalar_value=np.mean(rec_losses)
+        )
+        self.sw.add_scalar(
+            tag='int_loss', global_step=self.epoch,
+            scalar_value=np.mean(int_losses)
+        )
         self.sw.add_scalar(
             tag='train_loss', global_step=self.epoch,
-            scalar_value=mean_loss
+            scalar_value=np.mean(train_losses)
         )
 
         # log epoch duration
@@ -216,12 +223,13 @@ class Trainer(object):
 
         # save best model
         if self.best_test_acc is None or accuracy > self.best_test_acc:
+            print('new BEST', accuracy)
             self.best_test_acc = accuracy
             self.patience = self.cnf.max_patience
             self.model.save_w(
                 self.log_path / 'best.pth',
                 cnf_dict=self.cnf.dict_view,
-                )
+            )
         else:
             self.patience = self.patience - 1
 
