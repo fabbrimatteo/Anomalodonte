@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from sklearn.neighbors import LocalOutlierFactor
 
+from eval.utils import bin_class_metrics
 from models.autoencoder_plus import AutoencoderPlus
 
 
@@ -26,11 +27,11 @@ class Loffer(object):
         train_codes = []
         for j, img_path in enumerate(train_paths):
             done_p = 100 * ((j + 1) / len(train_paths))
-            print(f'\r$> fitting on training set: {done_p:.2f}%', end='')
+            print(f'\r$> fitting LOF on training set: {done_p:.2f}%', end='')
             img = cv2.imread(img_path)
             flat_code = model.get_flat_code(img)
             train_codes.append(flat_code)
-        print()
+        print('\r')
 
         # find outliers in training codes
         # using a LOF model as outlier-detector (i.e. novelty=False)
@@ -80,45 +81,9 @@ class Loffer(object):
             label_pred = 'good' if anomaly_perc < 50 else 'bad'
             labels_pred.append(label_pred)
 
-        labels_true = np.array(labels_true)
-
-        # TODO... handle nc
-        labels_true[labels_true == 'nc'] = 'bad'
-        labels_pred = np.array(labels_pred)
-
-        # number of GT samples with label "good" (non anomalous)
-        n_good = (labels_true == 'good').sum()
-
-        # number of GT samples with label "bad" (anomalous)
-        n_bad = (labels_true == 'bad').sum()
-
-        # boolean array of correct predictions, i.e.:
-        # >> matches[i] is True <=> labels_pred[i] == labels_true[i]
-        # >> matches[i] is False <=> labels_pred[i] != labels_true[i]
-        matches = np.array(labels_pred == labels_true, dtype=bool)
-
-        # boolean array of wrong predictions, i.e.
-        # >> errors[i] is True <=> labels_pred[i] != labels_true[i]
-        # >> errors[i] is False <=> labels_pred[i] == labels_true[i]
-        errors = ~matches
-
-        # compute true-positive-rate, i.e.:
-        # number of correctly detected anomalies
-        tp = matches[labels_true == 'bad'].sum()  # type: int
-        tpr = float(tp / n_bad)
-
-        # compute false-positive-rate, i.e.:
-        # number of samples erroneously classified as anomalous
-        # (label_pred="bad") even though they are not (label_true="good")
-        fp = errors[labels_true == 'good'].sum()  # type: int
-        fpr = float(fp / n_good)
-
-        rates_dict = {
-            'tpr': tpr,
-            'fpr': fpr,
-            'tnr': 1 - fpr,
-            'fnr': 1 - tpr,
-            'bal_acc': (tpr + (1 - fpr)) / 2
-        }
+        rates_dict = bin_class_metrics(
+            labels_pred=np.array(labels_pred),
+            labels_true=np.array(labels_true)
+        )
 
         return rates_dict

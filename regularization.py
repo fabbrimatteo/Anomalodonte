@@ -1,9 +1,9 @@
 import torch
-from models.autoencoder import SimpleAutoencoder
+from models.autoencoder_core import AutoencoderCore
 
 
 def interpol_loss(x, model):
-    # type: (torch.Tensor, SimpleAutoencoder) -> torch.Tensor
+    # type: (torch.Tensor, AutoencoderCore) -> torch.Tensor
 
     # half batch size
     b = x.shape[0] // 2

@@ -49,7 +49,17 @@ class SimpleAutoencoder(BaseModel):
             ResidualStack(m, m, mid_channels=m // 4, n_res_layers=n_res_layers),
             # --- last conv: (m, H/8, W/8) -> (code_channels, H/8, W/8)
             nn.Conv2d(mid_channels, code_channels, kernel_size=3, stride=1, padding=1),
-            nn.Tanh()
+            nn.SiLU()
+        )
+
+        self.fc_mu = nn.Sequential(
+            nn.Linear(in_features=3072, out_features=3 * 4 * 4),
+            nn.Tanh(),
+        )
+
+        self.fc_logvar = nn.Linear(
+            in_features=3072,
+            out_features=3 * 4 * 4
         )
 
         self.decoder = nn.Sequential(
@@ -78,18 +88,29 @@ class SimpleAutoencoder(BaseModel):
         self.anomaly_th = None
         self.cnf_dict = None
 
+        self.kl_loss = 0
+
         self.kaiming_init(activation='LeakyReLU')
 
 
     def encode(self, x):
         # type: (torch.Tensor) -> torch.Tensor
-        code = self.encoder(x)
 
-        self.cache['h'] = code.shape[2]
-        self.cache['w'] = code.shape[3]
-        h = code.shape[2] if self.code_h is None else self.code_h
-        w = code.shape[3] if self.code_w is None else self.code_w
-        code = nn.AdaptiveAvgPool2d((h, w))(code)
+        hidden = self.encoder(x)
+        self.cache['h'] = hidden.shape[2]
+        self.cache['w'] = hidden.shape[3]
+        flat_h = hidden.view(hidden.shape[0], -1)
+
+        mu = self.fc_mu(flat_h)
+        logvar = self.fc_logvar(flat_h)
+        std = torch.exp(0.5 * logvar)
+
+        if self.training:
+            code = mu + std * self.normal.sample(mu.shape)
+            code = code.view((-1, self.code_channels, self.code_h, self.code_w))
+            self.kl_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
+        else:
+            code = mu.view((-1, self.code_channels, self.code_h, self.code_w))
 
         return code
 
@@ -101,7 +122,7 @@ class SimpleAutoencoder(BaseModel):
         return y
 
 
-    def forward(self, x):
+    def forward(self, x, code_noise=None):
         # type: (torch.Tensor, float) -> torch.Tensor
         code = self.encode(x)
         x = self.decode(code)
@@ -206,14 +227,14 @@ class SimpleAutoencoder(BaseModel):
         backup_function = self.train if self.training else self.eval
 
         x = x.to(self.device)
-        code_true = self.encode(x)
+        code_true = self.encode(x, code_noise=None)
         x_pred = self.decode(code_true)
 
         self.eval()
         with torch.no_grad():
 
             if score_function == 'CODE_MSE_LOSS':
-                code_pred = self.encode(x_pred)
+                code_pred = self.encode(x_pred, code_noise=None)
                 score = ((code_pred - code_true) ** 2).mean([1, 2, 3])
 
             elif score_function == 'MSE_LOSS':
@@ -307,9 +328,8 @@ def main():
 
     x = torch.rand((batch_size, 3, 256, 256)).to(device)
 
-    model = SimpleAutoencoder(n_res_layers=2, code_channels=8, code_h=8, code_w=8).to(device)
+    model = SimpleAutoencoder(n_res_layers=2, code_channels=3, code_h=4, code_w=4).to(device)
 
-    model.get_anomaly_score(x)
     y = model.forward(x)
     code = model.encode(x)
 

@@ -9,7 +9,7 @@ from typing import Dict
 from conf import Conf
 from dataset.spal_ds import SpalDS
 from typing import Tuple
-import roc_utils
+from eval import roc_utils
 import boxplot_utils as bp_utils
 
 

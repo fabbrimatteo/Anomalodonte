@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import boxplot_utils
-import roc_utils
+from eval import roc_utils
 from conf import Conf
 from dataset.spal_ds import SpalDS
 from evaluator import Evaluator

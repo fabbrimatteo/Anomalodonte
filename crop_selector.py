@@ -48,7 +48,7 @@ class CropSelector(object):
 
             pt1 = self.int_scale(self.pt1, scale=self.app_scale)
             pt2 = self.int_scale(self.pt2, scale=self.app_scale)
-            print(f'crop_bbox = [{pt1[0]}, {pt1[1]}, {pt2[0]}, {pt2[1]}]')
+            print(f'$> crop_bbox = [{pt1[0]}, {pt1[1]}, {pt2[0]}, {pt2[1]}]')
 
             if h < w:
                 delta = abs(h - side)
@@ -66,15 +66,19 @@ class CropSelector(object):
             pt1 = self.int_scale(self.pt1, scale=self.app_scale)
             pt2 = self.int_scale(self.pt2, scale=self.app_scale)
             side = pt2[1] - pt1[1]
-            print(f'(square version): '
-                  f'crop_x_min={pt1[0]}, '
-                  f'crop_y_min={pt1[1]}, '
-                  f'crop_side={side}')
+
+            print(f'$> crop_bbox (square) = '
+                  f'[{pt1[0]}, {pt1[1]}, {pt1[0] + side}, {pt1[1] + side}]')
+
+            print(f'$> side: {side}\n----')
 
 
     def draw_selection(self):
         if self.pt1 is not None and self.pt2 is not None:
-            return cv2.rectangle(self.img.copy(), self.pt1, self.pt2, color=(64, 0, 255), thickness=8)
+            return cv2.rectangle(
+                self.img.copy(), self.pt1, self.pt2,
+                color=(64, 0, 255), thickness=8
+            )
         return self.img
 
 
@@ -95,7 +99,10 @@ class CropSelector(object):
 
 
 def main():
-    CropSelector(in_path='/goat-nas/Datasets/spal/2022_03_09/goods/2022_02_04/20220204080648_601102626722200000099704_2OK.bmp').run()
+    from path import Path
+
+    res_path = Path(__file__).parent / 'resources'
+    CropSelector(in_path=res_path / 'full_img_sample.png').run()
 
 
 if __name__ == '__main__':
