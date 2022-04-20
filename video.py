@@ -12,8 +12,15 @@ from models.autoencoder_plus import AutoencoderPlus
 
 SPAL_PATH = Path('/goat-nas/Datasets/spal/spal_cuts')
 
+LABEL_MAP = {
+    'good': 'OK',
+    'bad': 'KO',
+    'nc': 'NC'
+}
 
-def video2(mode, exp_name):
+
+def demo(mode, exp_name):
+    # type: (str, str) -> None
     cnf = Conf(exp_name=exp_name)
 
     model = AutoencoderPlus.init_from_pth(
@@ -36,22 +43,13 @@ def video2(mode, exp_name):
         anomaly_perc = loffer.get_anomaly_perc(img, max_val=999)
         anomaly_perc = int(round(anomaly_perc))
 
-        label_true = img_path.basename().split('_')[0]
-
         if mode == 'train':
             label_true = 'OK'
         else:
-            if label_true == 'good':
-                label_true = 'OK'
-            elif label_true == 'bad':
-                label_true = 'KO'
-            elif label_true == 'nc':
-                label_true = 'NC'
+            label_true = img_path.basename().split('_')[0]
+            label_true = LABEL_MAP[label_true]
 
-        if anomaly_perc < 50:
-            label_pred = 'OK'
-        else:
-            label_pred = 'KO'
+        label_pred = 'OK' if anomaly_perc < 50 else 'KO'
 
         anomaly_prob = np.clip(anomaly_perc / 100, 0, 1)
 
@@ -71,4 +69,4 @@ def video2(mode, exp_name):
 
 
 if __name__ == '__main__':
-    video2(mode='test', exp_name='lof1')
+    demo(mode='test', exp_name='lof1')
