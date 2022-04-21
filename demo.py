@@ -51,6 +51,11 @@ def demo(mode, exp_name):
 
         label_pred = 'OK' if anomaly_perc < 50 else 'KO'
 
+        e1 = label_true == 'OK' and label_pred == 'KO'
+        e2 = label_true == 'KO' and label_pred == 'OK'
+        e3 = label_true == 'NC' and label_pred == 'OK'
+        err = 'err_' if (e1 or e2 or e3) else ''
+
         anomaly_prob = np.clip(anomaly_perc / 100, 0, 1)
 
         header = f'prediction: {label_pred}  (GT: {label_true})'
@@ -59,9 +64,10 @@ def demo(mode, exp_name):
         )
 
         name = img_path.basename().split('@')[-1]
-        name = f'{int(round(anomaly_perc)):03d}_{name}'
+        name = f'{int(round(anomaly_perc)):03d}_{err}{name}'
         name = name.replace('good_', '')
         name = name.replace('bad_', '')
+        name = name.replace('nc_', '')
 
         out_path = cnf.exp_log_path / f'demo_{mode}' / name
         cv2.imwrite(out_path, out_img)
@@ -69,4 +75,4 @@ def demo(mode, exp_name):
 
 
 if __name__ == '__main__':
-    demo(mode='test', exp_name='lof1')
+    demo(mode='test', exp_name='lof3_big')

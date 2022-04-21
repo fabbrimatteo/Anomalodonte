@@ -1,3 +1,2 @@
-python main.py --exp_name=mar2022smaller
-python main.py --exp_name=mar2022small
-python main.py --exp_name=mar2022big
+python main.py --exp_name=lof2_ni
+python main.py --exp_name=lof3_ni

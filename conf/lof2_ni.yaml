@@ -7,12 +7,12 @@ MAX_PATIENCE: 16
 N_WORKERS: 4
 BATCH_SIZE: 32
 DS_PATH: '/goat-nas/Datasets/spal/spal_cuts'
-CAM_ID: 'cam_1'
+CAM_ID: 'cam_2'
 
 # loss params
 LOSS_FN: 'L1+MS_SSIM'
 REC_LOSS_W: 1
-INT_LOSS_W: 1000
+INT_LOSS_W: 0
 
 # model params
 CODE_CHANNELS: 3

@@ -15,7 +15,7 @@ from conf import Conf
 from dataset.spal_ds import SpalDS
 from eval.lof import Loffer
 from models import Autoencoder
-from models.ano_loss import AnoLoss
+from models.rec_loss import RecLoss
 from progress_bar import ProgressBar
 from regularization import interpol_loss
 
@@ -72,11 +72,11 @@ class Trainer(object):
         self.load_ck()
 
         if self.cnf.loss_fn == 'L1+MS_SSIM':
-            self.loss_fn = AnoLoss(l1_w=10, ms_ssim_w=3)
+            self.rec_loss_fn = RecLoss(l1_w=10, ms_ssim_w=3)
         elif self.cnf.loss_fn == 'MSE':
-            self.loss_fn = lambda x, y: 100 * torch.nn.MSELoss()(x, y)
+            self.rec_loss_fn = lambda x, y: 100 * torch.nn.MSELoss()(x, y)
         else:
-            raise ValueError(f'unsupported loss function "{self.loss_fn}"')
+            raise ValueError(f'unsupported loss function "{self.rec_loss_fn}"')
 
 
     def load_ck(self):
@@ -131,11 +131,14 @@ class Trainer(object):
             y_pred = self.model.forward(x)
 
             # interpolation loss
-            int_loss = interpol_loss(model=self.model, x=x)
+            if self.cnf.int_loss_w > 0:
+                int_loss = interpol_loss(model=self.model, x=x)
+            else:
+                int_loss = torch.tensor([0]).to(self.cnf.device)
             int_losses.append(int_loss.item())
 
             # reconstruction loss
-            rec_loss = self.loss_fn(y_pred, y_true)
+            rec_loss = self.rec_loss_fn(y_pred, y_true)
             rec_losses.append(rec_loss.item())
 
             # global loss: weighted sum of reconstruction
@@ -196,15 +199,7 @@ class Trainer(object):
             x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
             y_pred = self.model.forward(x)
 
-            # interpolation and reconstruction losses
-            int_loss = interpol_loss(model=self.model, x=x)
-            rec_loss = self.loss_fn(y_pred, y_true)
-
-            # global loss: weighted sum of reconstruction
-            # and interpolation losses
-            rec_loss = self.cnf.rec_loss_w * rec_loss
-            int_loss = self.cnf.int_loss_w * int_loss
-            loss = rec_loss + int_loss
+            loss = self.rec_loss_fn(y_pred, y_true)
             test_losses.append(loss.item())
 
             # draw results for this step in a 2 rows grid:

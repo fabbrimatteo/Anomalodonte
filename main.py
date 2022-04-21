@@ -1,12 +1,22 @@
 # -*- coding: utf-8 -*-
 # ---------------------
 
+import os
+
 import click
 import torch.backends.cudnn as cudnn
 
-from conf import Conf
-from trainer import Trainer
 
+# get project root
+root = os.path.dirname(os.path.abspath(__file__))
+
+# add project root to PYTHONPATH
+python_path = os.environ.get('PYTHONPATH', None)
+if python_path is None:
+    python_path = root
+else:
+    python_path = f'{root}:{python_path}'
+os.environ['PYTHONPATH'] = python_path
 
 cudnn.benchmark = True
 
@@ -17,6 +27,9 @@ cudnn.benchmark = True
 @click.option('--seed', type=int, default=None)
 def main(exp_name, conf_file_path, seed):
     # type: (str, str, int) -> None
+
+    from conf import Conf
+    from trainer import Trainer
 
     # if `exp_name` is None,
     # ask the user to enter it

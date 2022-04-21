@@ -7,7 +7,7 @@ from torch import nn
 from torch.nn.modules.loss import _Loss
 
 
-class AnoLoss(_Loss):
+class RecLoss(_Loss):
 
     def __init__(self, l1_w, ms_ssim_w):
         # type: (float, float) -> None
