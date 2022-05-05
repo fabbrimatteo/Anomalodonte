@@ -32,9 +32,21 @@ class Loffer(object):
 
         # find outliers in training codes
         # using a LOF model as outlier-detector (i.e. novelty=False)
-        labels = LocalOutlierFactor(
-            n_neighbors=n_neighbors, novelty=False,
-        ).fit_predict(train_codes)
+        self.lof_train = LocalOutlierFactor(
+            n_neighbors=n_neighbors, novelty=False
+        )
+        labels = self.lof_train.fit_predict(train_codes)
+
+        # score training samples
+        train_scores = self.lof_train.negative_outlier_factor_
+        train_scores = 100*((train_scores / (-1.5)) - 0.5)
+        train_scores[train_scores < 0] = 0
+        idxs = np.argwhere(train_scores > 50)[:, 0]
+
+        self.train_outliers = {}
+        for i in idxs:
+            key = train_paths[i]
+            self.train_outliers[key] = train_scores[i]
 
         # remove outliers from training codes
         # n0 = len(train_codes)

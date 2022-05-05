@@ -28,8 +28,13 @@ def demo(mode, exp_name):
         device=cnf.device, mode='eval'
     )
 
-    os.system(f'rm -r "{cnf.exp_log_path}/demo_{mode}"')
-    os.system(f'mkdir "{cnf.exp_log_path}/demo_{mode}"')
+    print(f'rm -r "{cnf.exp_log_path}/demo_test"')
+    os.system(f'rm -r "{cnf.exp_log_path}/demo_test"')
+    os.system(f'mkdir "{cnf.exp_log_path}/demo_test"')
+
+    os.system(f'rm -r "{cnf.exp_log_path}/demo_train"')
+    os.system(f'mkdir "{cnf.exp_log_path}/demo_train"')
+
 
     loffer = Loffer(
         train_dir=SPAL_PATH / 'train' / cnf.cam_id,
@@ -37,6 +42,13 @@ def demo(mode, exp_name):
     )
 
     test_dir = SPAL_PATH / 'test' / cnf.cam_id
+
+    for key in loffer.train_outliers:
+        an_perc = loffer.train_outliers[key]
+        old_name = key.basename()
+        new_name = f'{int(round(an_perc)):03d}_{old_name}'
+        os.system(f'cp "{key}" "{cnf.exp_log_path}/demo_train/{new_name}"')
+
 
     for img_path in test_dir.files():
         img = cv2.imread(img_path)
@@ -75,4 +87,4 @@ def demo(mode, exp_name):
 
 
 if __name__ == '__main__':
-    demo(mode='test', exp_name='lof3_big')
+    demo(mode='test', exp_name='lof1_big')

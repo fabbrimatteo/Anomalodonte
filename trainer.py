@@ -257,6 +257,7 @@ class Trainer(object):
         """
         start model training procedure (train > test > checkpoint > repeat)
         """
+
         for _ in range(self.epoch, self.cnf.epochs):
             self.train()
 
