@@ -1,4 +1,3 @@
-import os
 import random
 from datetime import datetime
 from typing import Any
@@ -13,16 +12,6 @@ BOX_DICT = {
     'cam_2': [359, 148, 1053, 842],
     'cam_3': [493, 212, 1169, 888],
 }
-
-SPAL_ROOT = Path('/goat-nas/Datasets/spal')
-
-MAUGERI_DS = {
-    'train': SPAL_ROOT / '2022_03_09' / 'goods',
-    'test': SPAL_ROOT / '2022_03_09' / 'bads'
-}
-
-CUTS_ROOT = Path('/goat-nas/Datasets/spal/spal_cuts')
-CUTS_ROOT.mkdir_p()
 
 
 def mpath2info(fpath):
@@ -131,6 +120,10 @@ def cpath2info(cpath):
 
 def clean_cpath(cpath):
     # type: (str) -> str
+    """
+    :param cpath: cut-style path you want to clean
+    :return: filename without GT label and file extension
+    """
     cpath = Path(cpath).basename().split('.')[0]
     cpath = cpath.replace('bad_', '').replace('_bad', '')
     cpath = cpath.replace('good_', '').replace('_good', '')
@@ -139,66 +132,27 @@ def clean_cpath(cpath):
     return cpath
 
 
-def get_resized_cut(img_path):
-    info = mpath2info(img_path)
-    cam_id = 'cam_' + str(info['camera-id'])
-    x_min, y_min, x_max, y_max = BOX_DICT[cam_id]
+def read_and_cut(img_path, cam_name, side=256):
+    # type: (str, str, int) -> np.ndarray
+    """
+    :param img_path: path of the image you want to read and cut
+    :param cam_name: name of the camera that has taken the image
+    :return: square cut of the image with shape (side, side, 3)
+    """
+    x_min, y_min, x_max, y_max = BOX_DICT[cam_name]
     img = cv2.imread(img_path)
     cut = img[y_min:y_max, x_min:x_max]
-    return cv2.resize(cut, (256, 256))
-
-
-def refactor(mode):
-    if mode == 'train':
-        all_img_paths = []
-        for d in MAUGERI_DS[mode].dirs():
-            for img_path in d.files('*.bmp'):
-                all_img_paths.append(img_path)
-    else:
-        all_img_paths = MAUGERI_DS[mode].files('*.bmp')
-
-    for img_path in all_img_paths:
-
-        info = mpath2info(img_path)
-        cam_id = 'cam_' + str(info['camera-id'])
-
-        if info['label'] == 'good' or mode == 'test':
-            x_min, y_min, x_max, y_max = BOX_DICT[cam_id]
-            img = cv2.imread(img_path)
-            cut = img[y_min:y_max, x_min:x_max]
-            resized_cut = cv2.resize(cut, (256, 256))
-
-            out_name = info['new_name']
-            if mode == 'test':
-                out_name = 'bad_' + out_name
-
-            out_path = CUTS_ROOT / mode / cam_id / out_name
-            out_path.parent.mkdir_p()
-
-            cv2.imwrite(out_path, resized_cut)
-            print(f'$> {out_path}')
-
-
-def mv_some_goods_to_test(n_imgs_to_move):
-    for cam_dir in (CUTS_ROOT / 'train').dirs():
-        cam_id = cam_dir.basename()
-        print(f'\n$> CAMERA: {cam_dir.basename()}')
-        all_img_paths = []
-        for img_path in cam_dir.files('*.jpg'):
-            all_img_paths.append(img_path)
-        selection = random.choices(all_img_paths, k=n_imgs_to_move)
-        for img_path in selection:
-            new_name = 'good_' + img_path.basename()
-            print(f'mv "{img_path}" '
-                  f'"{CUTS_ROOT / "test" / cam_id / new_name}"')
-            os.system(f'mv "{img_path}" '
-                      f'"{CUTS_ROOT / "test" / cam_id / new_name}"')
+    return cv2.resize(cut, (side, side), interpolation=cv2.INTER_AREA)
 
 
 class Checker(object):
 
-    def __init__(self, ds_root):
-        self.ds_root = Path(ds_root)
+    def __init__(self, cut_ds_root):
+        # type: (str) -> None
+        """
+        :param cut_ds_root: root directory of the cut-style dataset
+        """
+        self.ds_root = Path(cut_ds_root)
         self.all = {
             'cam_1': [],
             'cam_2': [],
@@ -210,45 +164,46 @@ class Checker(object):
                 self.all[cam] += [clean_cpath(f) for f in d.files()]
 
 
-    def check(self, maugeri_path):
-        info = mpath2info(maugeri_path)
+    def check(self, mpath):
+        # type: (str) -> bool
+        """
+        :param mpath:
+        :return:
+        """
+        info = mpath2info(mpath)
         name = info['datestr']
         cam = f'cam_{info["camera-id"]}'
         return name in self.all[cam]
 
 
-def demo():
-    mroot = Path('/goat-nas/Datasets/spal/maugeri_ds/goods')
-    croot = Path('/goat-nas/Datasets/spal/spal_cuts')
-    ck = Checker('/goat-nas/Datasets/spal/spal_cuts')
+def create_cut_ds(m_root, c_root):
+    # type: (str, str) -> None
+    m_root = Path(m_root)
+    c_root = Path(c_root)
 
-    counter = {
-        1: 0,
-        2: 0,
-        3: 0
-    }
+    ck = Checker(cut_ds_root=c_root)
 
-    for day_dir in mroot.dirs():
+    for day_dir in m_root.dirs():
         for mpath in day_dir.files():
-            info = mpath2info(fpath=mpath)
-            #
             if ck.check(mpath) is False:
-                cut = get_resized_cut(mpath)
+                info = mpath2info(fpath=mpath)
                 cam_name = f'cam_{info["camera-id"]}'
-                counter[info['camera-id']] += 1
+                cut = read_and_cut(img_path=mpath, cam_name=cam_name)
+
                 cname = info['datestr'] + '.jpg'
 
                 if random.random() <= 0.01:
                     cname = 'good_' + cname
-                    cpath = croot / 'test' / cam_name / cname
-
+                    cpath = c_root / 'test' / cam_name / cname
                 else:
-                    cpath = croot / 'train' / cam_name / cname
+                    cpath = c_root / 'train' / cam_name / cname
 
-                print(f'cv2.imwrite("{cpath}", cut)')
                 cv2.imwrite(cpath, cut)
-                # print((croot / out_mode / cam_name).exists(), '\n')
+                print(f'$> "{cpath}": saved')
 
 
 if __name__ == '__main__':
-    cpath2info('/goat-nas/Datasets/spal/spal_cuts/train/cam_2/2022_02_02_08_47_24.jpg')
+    create_cut_ds(
+        m_root='/goat-nas/Datasets/spal/maugeri_ds/goods',
+        c_root='/goat-nas/Datasets/spal/spal_cuts'
+    )
