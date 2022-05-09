@@ -4,6 +4,7 @@ from sklearn.neighbors import LocalOutlierFactor
 
 from eval.utils import bin_class_metrics
 from models.autoencoder_plus import AutoencoderPlus
+from ad_drawer import show_anomaly
 
 
 class Loffer(object):
@@ -39,7 +40,7 @@ class Loffer(object):
 
         # score training samples
         train_scores = self.lof_train.negative_outlier_factor_
-        train_scores = 100*((train_scores / (-1.5)) - 0.5)
+        train_scores = 100 * ((train_scores / (-1.5)) - 0.5)
         train_scores[train_scores < 0] = 0
         idxs = np.argwhere(train_scores > 50)[:, 0]
 
@@ -84,12 +85,32 @@ class Loffer(object):
 
         labels_true = []
         labels_pred = []
+        top16_errors = []
         for img_path in test_dir.files():
             img = cv2.imread(img_path)
-            anomaly_perc = self.get_anomaly_perc(img)
             label_true = img_path.basename().split('_')[0]
+            ap_pred = self.get_anomaly_perc(img)
+            ap_true = 0 if label_true == 'good' else 100
+
+            ap_error = abs(ap_true - ap_pred)
+            if len(top16_errors) < 16:
+                img = show_anomaly(
+                    img=img, anomaly_prob=ap_pred / 100,
+                    header=label_true
+                )
+                top16_errors.append((ap_error, img[:, :, ::-1]))
+                top16_errors.sort(key=lambda x: x[0], reverse=True)
+            else:
+                if ap_error > top16_errors[-1][0]:
+                    img = show_anomaly(
+                        img=img, anomaly_prob=ap_pred / 100,
+                        header=label_true
+                    )
+                    top16_errors[-1] = (ap_error, img[:, :, ::-1])
+                    top16_errors.sort(key=lambda x: x[0], reverse=True)
+
             labels_true.append(label_true)
-            label_pred = 'good' if anomaly_perc < 50 else 'bad'
+            label_pred = 'good' if ap_pred < 50 else 'bad'
             labels_pred.append(label_pred)
 
         rates_dict = bin_class_metrics(
@@ -97,4 +118,4 @@ class Loffer(object):
             labels_true=np.array(labels_true)
         )
 
-        return rates_dict
+        return rates_dict, top16_errors

@@ -60,7 +60,6 @@ class AutoencoderCore(BaseModel):
         )
 
         self.cache = {}
-        self.anomaly_th = None
         self.cnf_dict = None
 
         self.kaiming_init(activation='LeakyReLU')

@@ -40,6 +40,7 @@ def draw_anomaly_bar(img, x_min, y_min, h, w, color):
     return img
 
 
+
 def show_anomaly(img, anomaly_prob, header='', plus='', ret=True):
     pad = 32
     bar_h = 64

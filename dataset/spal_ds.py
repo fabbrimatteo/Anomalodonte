@@ -53,11 +53,15 @@ class SpalDS(Dataset):
             x = pre_processing.bgr2rgb(x)
             self.imgs.append(x)
 
-            self.data_aug = iaa.Sequential([
-                iaa.AddToHue((-32, 32)),
-                iaa.AddToBrightness((-32, 32), to_colorspace='HSV'),
-                iaa.AddToSaturation((-32, 32))
-            ], random_order=True)
+            self.data_aug = iaa.SomeOf(
+                n=(0, 3),
+                children=[
+                    iaa.AddToHue((-16, 16)),
+                    iaa.AddToBrightness((-16, 16), to_colorspace='HSV'),
+                    iaa.AddToSaturation((-16, 16))
+                ],
+                random_order=True
+            )
 
             # (1) in `training` mode, all images have label "good"
             # (2) in `test` mode the label of an image can be
@@ -92,8 +96,8 @@ class SpalDS(Dataset):
         label = self.labels[i]
 
         # `x` & `y` -> shape (C,H,W) and values in [0,1] (float)
-        if self.mode == 'train':
-            img = self.data_aug.augment_image(img)
+        # if self.mode == 'train':
+        #     img = self.data_aug.augment_image(img)
 
         x = self.to_tensor(img)
         y = self.to_tensor(img)

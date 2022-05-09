@@ -190,7 +190,8 @@ class Trainer(object):
         train_dir = self.cnf.ds_path / 'train' / self.cnf.cam_id
         test_dir = self.cnf.ds_path / 'test' / self.cnf.cam_id
         loffer = Loffer(train_dir=train_dir, model=self.model)
-        lof_ba = loffer.evaluate(test_dir=test_dir)['bal_acc']
+        ad_rates, top16_errs = loffer.evaluate(test_dir=test_dir)
+        lof_ba = ad_rates['bal_acc']
         accuracy = lof_ba
 
         test_losses = []
@@ -216,6 +217,17 @@ class Trainer(object):
                     global_step=self.epoch
                 )
 
+        err_img = np.array([e[1] for e in top16_errs])
+        err_img = torch.tensor(err_img.transpose((0, 3, 1, 2))) / 255.
+        err_img = tv.utils.make_grid(
+            err_img, normalize=True,
+            value_range=(0, 1), nrow=2,
+        )
+        self.sw.add_image(
+            tag=f'top16_errors', img_tensor=err_img,
+            global_step=self.epoch
+        )
+
         # save best model
         if self.best_test_acc is None or accuracy > self.best_test_acc:
             self.best_test_acc = accuracy
@@ -226,6 +238,12 @@ class Trainer(object):
             )
         else:
             self.patience = self.patience - 1
+
+        # save last model
+        self.model.save_w(
+            self.log_path / 'last.pth',
+            cnf_dict=self.cnf.dict_view,
+        )
 
         # log test results
         print(f'\t● Bal. Acc: {100 * accuracy:.2f}%'

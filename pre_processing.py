@@ -34,8 +34,8 @@ def bgr2rgb(img):
 
 class PreProcessingTr(object):
 
-    def __init__(self, to_tensor=False):
-        # type: (bool) -> None
+    def __init__(self, to_tensor=False, unsqueeze=False):
+        # type: (bool, bool) -> None
         """
         (1) optional conversion from `np.ndarray` to `torch.Tensor`
         (2) conversion from BGR colorspace to RGB colorspace
@@ -43,8 +43,10 @@ class PreProcessingTr(object):
         :param to_tensor: if True, the image is converted into torch.Tensor
             with shape (C,H,W) and values in [0,1], otherwise it remains a
             numpy array with shape (H,W,C) and values in [0,255]
+        :param unsqueeze: if True, adds a singleton dimension to the
+            output tensor
         """
-
+        self.unsqueeze = unsqueeze
         trs_list = []
 
         if to_tensor:
@@ -58,7 +60,10 @@ class PreProcessingTr(object):
 
     def apply(self, img):
         # type: (np.ndarray) -> ArrayOrTensor
-        return self.trs(img)
+        x = self.trs(img)
+        if self.unsqueeze:
+            x = x.unsqueeze(0)
+        return x
 
 
     def __call__(self, img):

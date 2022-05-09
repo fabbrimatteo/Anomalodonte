@@ -41,7 +41,6 @@ class AutoencoderPlus(AutoencoderCore):
         )
         autoencoder.load_state_dict(pth_dict['state_dict'])
         autoencoder.cnf_dict = pth_dict['cnf_dict']
-        autoencoder.anomaly_th = pth_dict['anomaly_th']
 
         if mode == 'eval':
             autoencoder.requires_grad(False)
