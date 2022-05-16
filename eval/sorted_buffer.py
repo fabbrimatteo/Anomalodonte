@@ -49,12 +49,20 @@ class SortedBuffer(Generic[BufferElement]):
         return self.buffer[i]
 
 
-def debug():
-    b = SortedBuffer[int](buffer_size=4, sort_key=lambda x: -x)
+    def __str__(self):
+        # type: () -> str
+        return f'{self.buffer}'
+
+
+def demo():
+    import random
+
+    buffer = SortedBuffer[int](buffer_size=4)
     for i in range(10):
-        b.append(i)
-        print(f'{i}: {b.buffer}')
+        x = random.randint(0, 100)
+        buffer.append(x)
+        print(f'({i}): adding {x} to buffer -> {buffer}')
 
 
 if __name__ == '__main__':
-    debug()
+    demo()
