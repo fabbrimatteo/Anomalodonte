@@ -12,7 +12,7 @@ CAM_ID: 'cam_3'
 # loss params
 LOSS_FN: 'L1+MS_SSIM'
 REC_LOSS_W: 1
-INT_LOSS_W: 1000
+INT_LOSS_W: 2000
 
 # model params
 CODE_CHANNELS: 3

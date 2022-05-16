@@ -189,7 +189,10 @@ class Trainer(object):
 
         train_dir = self.cnf.ds_path / 'train' / self.cnf.cam_id
         test_dir = self.cnf.ds_path / 'test' / self.cnf.cam_id
-        loffer = Loffer(train_dir=train_dir, model=self.model)
+        loffer = Loffer(
+            train_dir=train_dir, model=self.model,
+            n_neighbors=20,
+        )
         ad_rates, top16_errs = loffer.evaluate(test_dir=test_dir)
         lof_ba = ad_rates['bal_acc']
         accuracy = lof_ba

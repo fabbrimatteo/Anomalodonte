@@ -32,56 +32,68 @@ def demo(exp_name):
     # init "Loffer" object
     loffer = Loffer(
         train_dir=SPAL_PATH / 'train' / cnf.cam_id,
-        model=model, n_neighbors=12
+        model=model, n_neighbors=20
     )
 
-    # create/clear output directories
+    # "demo_test" contains all test images with their predicted
+    # anomaly percentage and class; the file name starts with the
+    # predicted anomaly score
     os.system(f'rm -r "{cnf.exp_log_path}/demo_test"')
     os.system(f'mkdir "{cnf.exp_log_path}/demo_test"')
+
+    # "demo_train" contains all the detected outliers in the training
+    # set with theirs anomaly percentage and class; the file name
+    # starts with the predicted anomaly score
     os.system(f'rm -r "{cnf.exp_log_path}/demo_train"')
     os.system(f'mkdir "{cnf.exp_log_path}/demo_train"')
 
     test_dir = SPAL_PATH / 'test' / cnf.cam_id
-    loffer.evaluate(test_dir)
+    metrics, _ = loffer.evaluate(test_dir)
 
+    # save training outliers in "demo_train"
     for key in loffer.train_outliers:
         an_perc = loffer.train_outliers[key]
         old_name = key.basename()
         new_name = f'{int(round(an_perc)):03d}_{old_name}'
         os.system(f'cp "{key}" "{cnf.exp_log_path}/demo_train/{new_name}"')
 
+    # save test results in "demo_test"
     for img_path in test_dir.files():
         img = cv2.imread(img_path)
-        anomaly_perc = loffer.get_anomaly_perc(img, max_val=999)
-        anomaly_perc = int(round(anomaly_perc))
+        anomaly_score = loffer.get_anomaly_score(img)
+        anomaly_score = int(round(anomaly_score))
 
         label_true = img_path.basename().split('_')[0]
         label_true = LABEL_MAP[label_true]
 
-        label_pred = 'OK' if anomaly_perc < 50 else 'KO'
+        # anomaly threshold is 50 by default
+        label_pred = 'OK' if anomaly_score < 50 else 'KO'
 
+        # since NC samples are poorly annotated, we do not
+        # consider an error if our model predicts "KO" for
+        # a sample that is labelled as "NC"
         e1 = label_true == 'OK' and label_pred == 'KO'
         e2 = label_true == 'KO' and label_pred == 'OK'
         e3 = label_true == 'NC' and label_pred == 'OK'
         err = 'err_' if (e1 or e2 or e3) else ''
 
-        anomaly_prob = np.clip(anomaly_perc / 100, 0, 1)
-
+        # draw output image with GT and prediction
         header = f'prediction: {label_pred}  (GT: {label_true})'
-        out_img = ad_drawer.show_anomaly(
-            img, anomaly_prob, header=header, ret=True
+        out_img = ad_drawer.draw_anomaly_ui(
+            img, anomaly_score, header=header, ret=True
         )
 
+        # save output image
         name = img_path.basename().split('@')[-1]
-        name = f'{int(round(anomaly_perc)):03d}_{err}{name}'
+        name = f'{int(round(anomaly_score)):03d}_{err}{name}'
         name = name.replace('good_', '')
         name = name.replace('bad_', '')
         name = name.replace('nc_', '')
-
         out_path = cnf.exp_log_path / f'demo_test' / name
         cv2.imwrite(out_path, out_img)
-    print(f'$> metrics: {loffer.evaluate(test_dir)}')
+
+    print(f'$> metrics: {metrics}')
 
 
 if __name__ == '__main__':
-    demo(exp_name='lof22')
+    demo(exp_name='lof3i2')

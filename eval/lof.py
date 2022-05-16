@@ -4,7 +4,7 @@ from sklearn.neighbors import LocalOutlierFactor
 
 from eval.utils import bin_class_metrics
 from models.autoencoder_plus import AutoencoderPlus
-from ad_drawer import show_anomaly
+from ad_drawer import draw_anomaly_ui
 
 
 class Loffer(object):
@@ -64,21 +64,32 @@ class Loffer(object):
         self.lof.fit(train_codes)
 
 
-    def get_anomaly_perc(self, img, max_val=100.):
-        # type: (np.ndarray, float) -> float
+    def get_anomaly_perc(self, img):
+        # type: (np.ndarray) -> float
         """
         :param img: input BGR image;
             >> shape: (H, W, 3) and values in [0, 255]
-        :param max_val: clip anomaly perc using `max_val` as upper bound
-            >> use `max_val=100` for a value in [0, 100]
-        :return: anomaly percentage
+        :return: anomaly percentage in range [0, 100]
+            >> NOTE: it's just a clipped version of the anomaly score!
+        """
+        anomaly_score = self.get_anomaly_score(img)
+        anomaly_perc = min(anomaly_score, 100)
+        return anomaly_perc
+
+
+    def get_anomaly_score(self, img):
+        # type: (np.ndarray) -> float
+        """
+        :param img: input BGR image;
+            >> shape: (H, W, 3) and values in [0, 255]
+        :return: anomaly score
         """
 
         flat_code = self.model.get_flat_code(img)
         flat_code = flat_code.reshape(1, -1)
         lof_score = self.lof.score_samples(flat_code)[0]
-        anomaly_perc = 100 * max(0, (lof_score / (-1.5)) - 0.5)
-        return min(anomaly_perc, max_val)
+        anomaly_score = 100 * max(0, (lof_score / (-1.5)) - 0.5)
+        return anomaly_score
 
 
     def evaluate(self, test_dir):
@@ -94,16 +105,16 @@ class Loffer(object):
 
             ap_error = abs(ap_true - ap_pred)
             if len(top16_errors) < 16:
-                img = show_anomaly(
-                    img=img, anomaly_prob=ap_pred / 100,
+                img = draw_anomaly_ui(
+                    img=img, anomaly_score=ap_pred,
                     header=label_true
                 )
                 top16_errors.append((ap_error, img[:, :, ::-1]))
                 top16_errors.sort(key=lambda x: x[0], reverse=True)
             else:
                 if ap_error > top16_errors[-1][0]:
-                    img = show_anomaly(
-                        img=img, anomaly_prob=ap_pred / 100,
+                    img = draw_anomaly_ui(
+                        img=img, anomaly_score=ap_pred,
                         header=label_true
                     )
                     top16_errors[-1] = (ap_error, img[:, :, ::-1])
