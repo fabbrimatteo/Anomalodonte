@@ -2,10 +2,10 @@ import cv2
 import numpy as np
 from sklearn.neighbors import LocalOutlierFactor
 
+from eval.sorted_buffer import SortedBuffer
 from eval.utils import bin_class_metrics
 from models.autoencoder_plus import AutoencoderPlus
-from ad_drawer import draw_anomaly_ui
-
+from typing import Tuple
 
 class Loffer(object):
 
@@ -96,7 +96,9 @@ class Loffer(object):
 
         labels_true = []
         labels_pred = []
-        top16_errors = []
+        top16_errors = SortedBuffer[Tuple[float, np.ndarray]](
+            buffer_size=16, sort_key=lambda x: x[0]
+        )
         for img_path in test_dir.files():
             img = cv2.imread(img_path)
             label_true = img_path.basename().split('_')[0]
@@ -104,21 +106,7 @@ class Loffer(object):
             ap_true = 0 if label_true == 'good' else 100
 
             ap_error = abs(ap_true - ap_pred)
-            if len(top16_errors) < 16:
-                img = draw_anomaly_ui(
-                    img=img, anomaly_score=ap_pred,
-                    header=label_true
-                )
-                top16_errors.append((ap_error, img[:, :, ::-1]))
-                top16_errors.sort(key=lambda x: x[0], reverse=True)
-            else:
-                if ap_error > top16_errors[-1][0]:
-                    img = draw_anomaly_ui(
-                        img=img, anomaly_score=ap_pred,
-                        header=label_true
-                    )
-                    top16_errors[-1] = (ap_error, img[:, :, ::-1])
-                    top16_errors.sort(key=lambda x: x[0], reverse=True)
+            top16_errors.append((ap_error, img[:, :, ::-1]))
 
             labels_true.append(label_true)
             label_pred = 'good' if ap_pred < 50 else 'bad'

@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from path import Path
 
-import ad_drawer
+from visual_utils import draw_anomaly_ui
 from conf import Conf
 from eval.lof import Loffer
 from models.autoencoder_plus import AutoencoderPlus
@@ -79,8 +79,8 @@ def demo(exp_name):
 
         # draw output image with GT and prediction
         header = f'prediction: {label_pred}  (GT: {label_true})'
-        out_img = ad_drawer.draw_anomaly_ui(
-            img, anomaly_score, header=header, ret=True
+        out_img = draw_anomaly_ui(
+            img, anomaly_score, header=header
         )
 
         # save output image
@@ -96,4 +96,4 @@ def demo(exp_name):
 
 
 if __name__ == '__main__':
-    demo(exp_name='lof3i2')
+    demo(exp_name='lof3')
