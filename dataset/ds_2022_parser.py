@@ -14,10 +14,10 @@ BOX_DICT = {
 }
 
 
-def mpath2info(fpath):
+def mpath2info(mpath):
     # type: (str) -> Dict[str, Any]
     """
-    :param fpath: file path of an image in "maugeri" format
+    :param mpath: file path of an image in "maugeri" format
     :return: information dictionary with the following keys:
         'datetime': image creation datetime (datetime object)
         'datestr': image creation datetime as string in the format:
@@ -28,9 +28,9 @@ def mpath2info(fpath):
             >> values in {'good', 'bad', 'unknown'}
         'original_name': original file name
     """
-    if type(fpath) is str:
-        fpath = Path(fpath)
-    date, tag, cam_and_label = fpath.basename().split('_')
+    if type(mpath) is str:
+        mpath = Path(mpath)
+    date, tag, cam_and_label = mpath.basename().split('_')
 
     # parse date
     date = datetime(
@@ -46,9 +46,9 @@ def mpath2info(fpath):
     cam = cam_and_label[0]
 
     # GT label
-    if 'ok' in fpath.lower():
+    if 'ok' in mpath.lower():
         label = 'good'
-    elif 'ko' in fpath.lower():
+    elif 'ko' in mpath.lower():
         label = 'bad'
     else:
         label = 'unknown'
@@ -58,7 +58,7 @@ def mpath2info(fpath):
         'datestr': date.strftime('%Y_%m_%d_%H_%M_%S'),
         'camera-id': int(cam),
         'label': label,
-        'original_name': str(fpath.basename()),
+        'original_name': str(mpath.basename()),
     }
 
     return info
@@ -186,7 +186,7 @@ def create_cut_ds(m_root, c_root):
     for day_dir in m_root.dirs():
         for mpath in day_dir.files():
             if ck.check(mpath) is False:
-                info = mpath2info(fpath=mpath)
+                info = mpath2info(mpath=mpath)
                 cam_name = f'cam_{info["camera-id"]}'
                 cut = read_and_cut(img_path=mpath, cam_name=cam_name)
 

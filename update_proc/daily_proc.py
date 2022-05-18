@@ -1,5 +1,6 @@
 import random
 from typing import Set
+from typing import Tuple
 
 from path import Path
 
@@ -24,6 +25,7 @@ def __choice_perc(x, perc):
 
 
 def daily_update_procedure(u_range, expl_perc):
+    # type: (Tuple[int, int], float) -> None
     """
     :param u_range: uncertainty range w.r.t anomaly score (`s`);
         the range is defined by a tuple (s_min, s_max) such that:
@@ -83,4 +85,4 @@ def daily_update_procedure(u_range, expl_perc):
 
 
 if __name__ == '__main__':
-    daily_update_procedure(u_range=(45, 120), expl_perc=5)
+    daily_update_procedure(u_range=(45, 150), expl_perc=5)
