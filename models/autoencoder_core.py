@@ -46,17 +46,20 @@ class AutoencoderCore(BaseModel):
 
         self.decoder = nn.Sequential(
             # --- first conv: (code_channels, H/8, W/8) -> (m, H/8, W/8)
-            nn.Conv2d(code_channels, mid_channels, kernel_size=(3, 3), stride=1, padding=1),
+            nn.Conv2d(code_channels, mid_channels, kernel_size=3, stride=1, padding=1),
             # --- residual part: (m, H/8, W/8) -> (m, H/8, W/8)
             ResidualStack(m, m, mid_channels=m // 4, n_res_layers=n_res_layers),
             nn.Conv2d(m, m, kernel_size=3, stride=1, padding=1),
             # --- upscale part: (m, H/8, W/8) -> (3, H, W)
             nn.Upsample(scale_factor=2),
-            nn.Conv2d(m, m // 2, kernel_size=3, stride=1, padding=1), nn.SiLU(),
+            nn.Conv2d(m, m // 2, kernel_size=3, stride=1, padding=1),
+            nn.SiLU(),
             nn.Upsample(scale_factor=2),
-            nn.Conv2d(m // 2, m // 2, kernel_size=3, stride=1, padding=1), nn.SiLU(),
+            nn.Conv2d(m // 2, m // 2, kernel_size=3, stride=1, padding=1),
+            nn.SiLU(),
             nn.Upsample(scale_factor=2),
-            nn.Conv2d(m // 2, 3, kernel_size=3, stride=1, padding=1), nn.Sigmoid()
+            nn.Conv2d(m // 2, 3, kernel_size=3, stride=1, padding=1),
+            nn.Sigmoid()
         )
 
         self.cache = {}

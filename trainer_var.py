@@ -14,10 +14,9 @@ from torch.utils.tensorboard import SummaryWriter
 from conf import Conf
 from dataset.spal_ds import SpalDS
 from eval.lof import Loffer
-from models import Autoencoder
 from models.rec_loss import RecLoss
+from models.variational import Variational
 from progress_bar import ProgressBar
-from regularization import interpol_loss
 
 
 class Trainer(object):
@@ -38,12 +37,12 @@ class Trainer(object):
         # init test loader
         test_set = SpalDS(cnf, mode='test')
         self.test_loader = DataLoader(
-            dataset=test_set, batch_size=cnf.batch_size // 4, num_workers=1,
+            dataset=test_set, batch_size=cnf.batch_size, num_workers=1,
             worker_init_fn=test_set.wif_test, shuffle=False, pin_memory=False,
         )
 
         # init model
-        self.model = Autoencoder(
+        self.model = Variational(
             code_channels=cnf.code_channels,
             code_h=cnf.code_h, code_w=cnf.code_w
         )
@@ -118,7 +117,7 @@ class Trainer(object):
 
         times = []
         train_losses = []
-        int_losses = []
+        kl_losses = []
         rec_losses = []
         for step, sample in enumerate(self.train_loader):
             t = time()
@@ -128,25 +127,15 @@ class Trainer(object):
             x, y_true, _ = sample
             x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
 
-            code_pred = self.model.encode(x)
-            y_pred = self.model.decode(code_pred)
+            y_pred = self.model.forward(x)
 
-            # interpolation loss
-            if self.cnf.int_loss_w > 0:
-                int_loss = interpol_loss(model=self.model, x=x)
-            else:
-                int_loss = torch.tensor([0]).to(self.cnf.device)
-            int_losses.append(int_loss.item())
-
-            # reconstruction loss
             rec_loss = self.rec_loss_fn(y_pred, y_true)
-            rec_losses.append(rec_loss.item())
+            kl_loss = self.model.kl_loss
+            kl_w = min(0.1 + 0.0035 * self.epoch, 1)
+            loss = rec_loss + kl_w * kl_loss
 
-            # global loss: weighted sum of reconstruction
-            # and interpolation losses
-            rec_loss = self.cnf.rec_loss_w * rec_loss
-            int_loss = self.cnf.int_loss_w * int_loss
-            loss = rec_loss + int_loss
+            rec_losses.append(rec_loss.item())
+            kl_losses.append(kl_loss.item())
             train_losses.append(loss.item())
 
             loss.backward()
@@ -168,8 +157,8 @@ class Trainer(object):
             scalar_value=np.mean(rec_losses)
         )
         self.sw.add_scalar(
-            tag='int_loss', global_step=self.epoch,
-            scalar_value=np.mean(int_losses)
+            tag='kl_loss', global_step=self.epoch,
+            scalar_value=np.mean(kl_losses)
         )
         self.sw.add_scalar(
             tag='train_loss', global_step=self.epoch,
@@ -210,7 +199,7 @@ class Trainer(object):
             # draw results for this step in a 2 rows grid:
             # row #1: predicted_output (y_pred)
             # row #2: target (y_true)
-            if step % 8 == 0:
+            if step % 4 == 0:
                 grid = torch.cat([y_pred, y_true], dim=0)
                 grid = tv.utils.make_grid(
                     grid, normalize=True,

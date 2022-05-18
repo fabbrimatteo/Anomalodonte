@@ -44,6 +44,7 @@ class SpalDS(Dataset):
             print(f'$> loading images into memory: please wait...')
 
         all_paths = (self.cnf.ds_path / mode / self.cnf.cam_id).files()
+        all_paths.sort(key=lambda p: p.basename())
 
         for i, img_path in enumerate(all_paths):
             if mode == 'train':

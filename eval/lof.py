@@ -1,11 +1,14 @@
+from typing import Tuple
+
 import cv2
 import numpy as np
+from path import Path
 from sklearn.neighbors import LocalOutlierFactor
 
 from eval.sorted_buffer import SortedBuffer
 from eval.utils import bin_class_metrics
 from models.autoencoder_plus import AutoencoderPlus
-from typing import Tuple
+
 
 class Loffer(object):
 
@@ -18,6 +21,7 @@ class Loffer(object):
         """
 
         self.model = model
+        train_dir = Path(train_dir)
 
         # build list of sorted training images
         # >> images are in ascending alphabetical order
@@ -96,7 +100,7 @@ class Loffer(object):
 
         labels_true = []
         labels_pred = []
-        top16_errors = SortedBuffer[Tuple[float, np.ndarray]](
+        top16_errors = SortedBuffer[Tuple[float, np.ndarray, float]](
             buffer_size=16, sort_key=lambda x: x[0]
         )
         for img_path in test_dir.files():
@@ -106,7 +110,7 @@ class Loffer(object):
             ap_true = 0 if label_true == 'good' else 100
 
             ap_error = abs(ap_true - ap_pred)
-            top16_errors.append((ap_error, img[:, :, ::-1]))
+            top16_errors.append((ap_error, img[:, :, ::-1], ap_pred))
 
             labels_true.append(label_true)
             label_pred = 'good' if ap_pred < 50 else 'bad'

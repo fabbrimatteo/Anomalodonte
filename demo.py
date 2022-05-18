@@ -96,4 +96,4 @@ def demo(exp_name):
 
 
 if __name__ == '__main__':
-    demo(exp_name='lof3')
+    demo(exp_name='lof3_d')
