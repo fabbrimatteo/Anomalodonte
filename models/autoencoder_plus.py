@@ -49,6 +49,20 @@ class AutoencoderPlus(AutoencoderCore):
         return autoencoder.to(device)
 
 
+    def get_code(self, img):
+        # type: (np.ndarray) -> torch.Tensor
+        """
+        ...
+        """
+
+        pre_proc_tr = pre_processing.PreProcessingTr(to_tensor=True)
+
+        x = pre_proc_tr(img)
+        x = x.unsqueeze(0).to(self.device)
+        code = self.encode(x)
+        return code
+
+
     def get_flat_code(self, img):
         # type: (np.ndarray) -> torch.Tensor
         """

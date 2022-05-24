@@ -81,6 +81,9 @@ class SpalDS(Dataset):
         if mode == 'train':
             print(f'\r\t$> done in {time.time() - t0:.0f} seconds')
 
+        random.Random(10).shuffle(self.imgs)
+        random.Random(10).shuffle(self.labels)
+
 
     def __len__(self):
         # type: () -> int
@@ -97,8 +100,8 @@ class SpalDS(Dataset):
         label = self.labels[i]
 
         # `x` & `y` -> shape (C,H,W) and values in [0,1] (float)
-        # if self.mode == 'train':
-        #     img = self.data_aug.augment_image(img)
+        if self.mode == 'train' and self.cnf.data_aug:
+            img = self.data_aug.augment_image(img)
 
         x = self.to_tensor(img)
         y = self.to_tensor(img)

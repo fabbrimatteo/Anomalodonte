@@ -62,4 +62,10 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    in_dir = Path('/goat-nas/Datasets/spal/spal_cuts/train/cam_1')
+    out_dir = Path('/goat-nas/Datasets/spal/spal_cuts/train/cam_1')
+    all_paths = list(in_dir.files())
+    all_paths.sort(key=lambda p: p.basename())
+    all_paths = all_paths[:5000]
+    for p in all_paths:
+        print(p)

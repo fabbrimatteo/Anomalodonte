@@ -38,8 +38,7 @@ def daily_update_procedure(u_range, expl_perc):
         samples of the set G and B to be moved to U' for manual
         verification by the user
     """
-    root_dir = Path('dummy_root')
-
+    root_dir = Path(__file__).parent.parent / 'dummy_root'
     recorder = DayRecorder(root_dir=root_dir)
 
     # extracts the preliminary versions of the 3 sub-sets (G, B, U)
@@ -80,7 +79,7 @@ def daily_update_procedure(u_range, expl_perc):
         dst_path = root_dir / 'train' / date_str + '.jpg'
 
         cmd = f'mv "{src_path.abspath()}" "{dst_path.abspath()}"'
-        print(f'───$> mv "{date_str}.jpg" '
+        print(f'───$> mv "{cmd}" '
               f'(anomaly_score={anomaly_score:03d}) to training set')
 
 

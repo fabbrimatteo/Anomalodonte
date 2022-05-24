@@ -202,7 +202,8 @@ class Trainer(object):
         for step, sample in enumerate(self.test_loader):
             x, y_true, _ = sample
             x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
-            y_pred = self.model.forward(x)
+            code = self.model.encode(x)
+            y_pred = self.model.decode(code)
 
             loss = self.rec_loss_fn(y_pred, y_true)
             test_losses.append(loss.item())
@@ -210,11 +211,17 @@ class Trainer(object):
             # draw results for this step in a 2 rows grid:
             # row #1: predicted_output (y_pred)
             # row #2: target (y_true)
-            if step % 8 == 0:
-                grid = torch.cat([y_pred, y_true], dim=0)
+            if step % 2 == 0:
+                bs = x.shape[0] // 2
+                y_pred = y_pred[:bs, ...]
+                y_true = y_true[:bs, ...]
+                code = code[:bs, ...]
+                code = (0.5 * (code + 1))
+                code = torch.nn.Upsample(size=(256, 256))(code)
+                grid = torch.cat([code, y_pred, y_true], dim=0)
                 grid = tv.utils.make_grid(
                     grid, normalize=True,
-                    value_range=(0, 1), nrow=x.shape[0]
+                    value_range=(0, 1), nrow=bs
                 )
                 self.sw.add_image(
                     tag=f'results_{step}', img_tensor=grid,

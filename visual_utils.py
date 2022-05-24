@@ -133,8 +133,8 @@ def draw_anomaly_ui(img, anomaly_score, header=''):
     return bck
 
 
-def code2img(code):
-    # type: (torch.Tensor) -> np.ndarray
+def code2img(code, side=None):
+    # type: (torch.Tensor, int) -> np.ndarray
 
     if len(code.shape) == 4 and code.shape[0] == 1:
         code = code[0]
@@ -163,5 +163,8 @@ def code2img(code):
         out = code_chunk if out is None else np.hstack((out, code_chunk))
 
         codes.append(code_chunk)
+
+    if side is not None:
+        out = cv2.resize(out, (side, side), interpolation=cv2.INTER_NEAREST)
 
     return out

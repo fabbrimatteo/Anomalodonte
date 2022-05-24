@@ -203,7 +203,11 @@ def create_cut_ds(m_root, c_root):
 
 
 if __name__ == '__main__':
-    create_cut_ds(
-        m_root='/goat-nas/Datasets/spal/maugeri_ds/goods',
-        c_root='/goat-nas/Datasets/spal/spal_cuts'
-    )
+
+    forbidden_dict = {}
+    for cam in ['cam_1', 'cam_2', 'cam_3']:
+        test_dir = Path(f'/goat-nas/Datasets/spal/spal_cuts/test/{cam}')
+        forbidden_dict[cam] = [
+            cpath2info(x)['datestr'] for x in test_dir.files()
+        ]
+    print()

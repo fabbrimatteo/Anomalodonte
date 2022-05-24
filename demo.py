@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from path import Path
 
+import visual_utils
 from visual_utils import draw_anomaly_ui
 from conf import Conf
 from eval.lof import Loffer
@@ -63,6 +64,9 @@ def demo(exp_name):
         anomaly_score = loffer.get_anomaly_score(img)
         anomaly_score = int(round(anomaly_score))
 
+        code = model.get_code(img)
+        code = visual_utils.code2img(code, side=64)
+
         label_true = img_path.basename().split('_')[0]
         label_true = LABEL_MAP[label_true]
 
@@ -82,6 +86,7 @@ def demo(exp_name):
         out_img = draw_anomaly_ui(
             img, anomaly_score, header=header
         )
+        out_img[:64, -64:, ...] = code
 
         # save output image
         name = img_path.basename().split('@')[-1]
@@ -91,9 +96,11 @@ def demo(exp_name):
         name = name.replace('nc_', '')
         out_path = cnf.exp_log_path / f'demo_test' / name
         cv2.imwrite(out_path, out_img)
+        out_path = cnf.exp_log_path / f'demo_test' / 'code_' + name
+        cv2.imwrite(out_path, code)
 
     print(f'$> metrics: {metrics}')
 
 
 if __name__ == '__main__':
-    demo(exp_name='lof3_d')
+    demo(exp_name='reg1')

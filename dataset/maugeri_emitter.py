@@ -3,7 +3,7 @@ from time import sleep
 import cv2
 from path import Path
 
-from ds_2022_parser import mpath2info
+from ds_2022_parser import mpath2info, cpath2info
 
 
 class Emitter(object):
@@ -15,15 +15,17 @@ class Emitter(object):
         return info['datestr']
 
 
-    def __init__(self, maugeri_root, cam_id, start_idx):
+    def __init__(self, maugeri_root, cuts_root, cam_id, start_idx):
         """
         :param maugeri_root: path of the "maugeri_ds" directory
+        :param maugeri_root: path of the "spal_cuts" directory
         :param cam_id: int identifier of the camera to use
             ->> values in {1, 2, 3}
         :param start_idx: skip the first `start_index` images
             according to an ascending order by date
         """
         self.root = Path(maugeri_root) / 'goods'
+        self.cuts_root = Path(cuts_root)
         self.all_paths = []
         self.index = 0
         for sub_dir in self.root.dirs():
@@ -35,6 +37,14 @@ class Emitter(object):
 
         assert start_idx < len(self.all_paths), \
             f'`start_index` must be less than {len(self.all_paths)}'
+
+        test_dir = self.cuts_root / 'test' / f'cam_{cam_id}'
+        skip_datestrs = [cpath2info(x)['datestr'] for x in test_dir.files()]
+
+        self.all_paths = [
+            p for p in self.all_paths
+            if mpath2info(p)['datestr'] not in skip_datestrs
+        ]
 
         self.all_paths.sort(key=self.__sorter)
         self.all_paths = self.all_paths[start_idx:]
@@ -63,6 +73,7 @@ class Emitter(object):
 def demo():
     emitter = Emitter(
         maugeri_root='/goat-nas/Datasets/spal/maugeri_ds',
+        cuts_root='/goat-nas/Datasets/spal/spal_cuts',
         cam_id=1, start_idx=5000
     )
 
