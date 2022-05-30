@@ -5,7 +5,6 @@ import torch
 from torch.nn.modules.loss import _Loss
 from models.rec_loss import RecLoss
 
-
 T = torch.Tensor
 
 
@@ -15,6 +14,9 @@ class CodeDiffLoss(_Loss):
         # type: (int) -> None
         super().__init__()
         self.batch_size = batch_size
+        self.mse_loss = torch.nn.MSELoss(reduction='none')
+        self.margin = 0.2
+        self.relu = torch.nn.ReLU()
         self.rec_loss = RecLoss(l1_w=10, ms_ssim_w=3)
 
 
@@ -56,8 +58,22 @@ class CodeDiffLoss(_Loss):
         return torch.abs((0.1 * x_diff2) - c_mse).mean()
 
 
+    def forward3(self, code_batch):
+        # type: (torch.Tensor) -> torch.Tensor
+
+        p = list(range(self.batch_size))
+        p.reverse()
+        p = torch.LongTensor(p)
+
+        code_1 = code_batch
+        code_2 = code_batch[p]
+
+        c_mse = self.mse_loss(code_1, code_2)
+        return self.relu(self.margin - c_mse).mean()
+
+
 if __name__ == '__main__':
     l = CodeDiffLoss(batch_size=7)
     x = torch.rand((7, 3, 256, 256))
     c = torch.rand((7, 3, 4, 4))
-    print(l.forward2(x, c))
+    print(l.forward3(x, c))

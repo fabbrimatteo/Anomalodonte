@@ -4,6 +4,7 @@ from typing import Any
 from typing import Dict
 
 import cv2
+import numpy as np
 from path import Path
 
 
@@ -132,15 +133,16 @@ def clean_cpath(cpath):
     return cpath
 
 
-def read_and_cut(img_path, cam_name, side=256):
+def read_and_cut(img_mpath, cam_name, side=256):
     # type: (str, str, int) -> np.ndarray
     """
-    :param img_path: path of the image you want to read and cut
+    :param img_mpath: path of the image you want to read and cut
+        ->> full image in the "maugeri" dataset
     :param cam_name: name of the camera that has taken the image
     :return: square cut of the image with shape (side, side, 3)
     """
     x_min, y_min, x_max, y_max = BOX_DICT[cam_name]
-    img = cv2.imread(img_path)
+    img = cv2.imread(img_mpath)
     cut = img[y_min:y_max, x_min:x_max]
     return cv2.resize(cut, (side, side), interpolation=cv2.INTER_AREA)
 
@@ -167,8 +169,8 @@ class Checker(object):
     def check(self, mpath):
         # type: (str) -> bool
         """
-        :param mpath:
-        :return:
+        :param mpath: check if image at `mpath` is inside the "cuts" dataset
+        :return: True if image is inside the "cuts" dataset, False otherwise
         """
         info = mpath2info(mpath)
         name = info['datestr']
@@ -188,7 +190,7 @@ def create_cut_ds(m_root, c_root):
             if ck.check(mpath) is False:
                 info = mpath2info(mpath=mpath)
                 cam_name = f'cam_{info["camera-id"]}'
-                cut = read_and_cut(img_path=mpath, cam_name=cam_name)
+                cut = read_and_cut(img_mpath=mpath, cam_name=cam_name)
 
                 cname = info['datestr'] + '.jpg'
 
@@ -200,14 +202,3 @@ def create_cut_ds(m_root, c_root):
 
                 cv2.imwrite(cpath, cut)
                 print(f'$> "{cpath}": saved')
-
-
-if __name__ == '__main__':
-
-    forbidden_dict = {}
-    for cam in ['cam_1', 'cam_2', 'cam_3']:
-        test_dir = Path(f'/goat-nas/Datasets/spal/spal_cuts/test/{cam}')
-        forbidden_dict[cam] = [
-            cpath2info(x)['datestr'] for x in test_dir.files()
-        ]
-    print()

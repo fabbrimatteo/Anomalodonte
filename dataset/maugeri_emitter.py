@@ -1,9 +1,10 @@
 from time import sleep
 
 import cv2
+import mmu
 from path import Path
 
-from ds_2022_parser import mpath2info, cpath2info
+from ds_utils import mpath2info, cpath2info
 
 
 class Emitter(object):
@@ -71,20 +72,30 @@ class Emitter(object):
 
 
 def demo():
+    from ds_utils import read_and_cut
     emitter = Emitter(
         maugeri_root='/goat-nas/Datasets/spal/maugeri_ds',
         cuts_root='/goat-nas/Datasets/spal/spal_cuts',
-        cam_id=1, start_idx=5000
+        cam_id=1, start_idx=0
     )
 
-    for day in range(5):
-        print(f'\nDAY #{day}')
-        for i in range(10):
-            read_ok, frame = emitter.read()
-            if not read_ok:
-                break
-            else:
-                print(f'───$> sample #{i} of day #{day}')
+    for i in range(5000):
+        print(i)
+        p = emitter.all_paths[i]
+        img = read_and_cut(p, cam_name='cam_1')
+        out_name = mpath2info(p)['datestr'] + '.jpg'
+        cv2.imwrite(
+            f'/goat-nas/Datasets/spal/progression_demo/{out_name}',
+            img
+        )
+    # for day in range(5):
+    #     print(f'\nDAY #{day}')
+    #     for i in range(10):
+    #         read_ok, frame = emitter.read()
+    #         if not read_ok:
+    #             break
+    #         else:
+    #             print(f'───$> sample #{i} of day #{day}')
 
 
 if __name__ == '__main__':

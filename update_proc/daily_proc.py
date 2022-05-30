@@ -79,7 +79,7 @@ def daily_update_procedure(u_range, expl_perc):
         dst_path = root_dir / 'train' / date_str + '.jpg'
 
         cmd = f'mv "{src_path.abspath()}" "{dst_path.abspath()}"'
-        print(f'───$> mv "{cmd}" '
+        print(f'───$> {cmd} '
               f'(anomaly_score={anomaly_score:03d}) to training set')
 
 

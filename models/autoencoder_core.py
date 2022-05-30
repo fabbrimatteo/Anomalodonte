@@ -41,7 +41,7 @@ class AutoencoderCore(BaseModel):
             ResidualStack(m, m, mid_channels=m // 4, n_res_layers=n_res_layers),
             # --- last conv: (m, H/8, W/8) -> (code_channels, H/8, W/8)
             nn.Conv2d(mid_channels, code_channels, kernel_size=3, stride=1, padding=1),
-            nn.Tanh()
+            # nn.Tanh()
         )
 
         self.decoder = nn.Sequential(
@@ -81,6 +81,8 @@ class AutoencoderCore(BaseModel):
         w = code.shape[3] if self.code_w is None else self.code_w
 
         code = nn.AdaptiveAvgPool2d((h, w))(code)
+        code_norm = torch.norm(code, p=2, dim=[1, 2, 3], keepdim=True)
+        code = code / code_norm
 
         return code
 
@@ -138,7 +140,7 @@ def main():
 
     x = torch.rand((batch_size, 3, 256, 256)).to(device)
 
-    model = SimpleAutoencoder(
+    model = AutoencoderCore(
         n_res_layers=2, code_channels=3, code_h=4, code_w=4
     ).to(device)
 

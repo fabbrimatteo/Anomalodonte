@@ -1,3 +1,3 @@
-python main.py --exp_name=reg1
-python main.py --exp_name=reg2
-python main.py --exp_name=reg3
+python main.py --exp_name=margin_r1
+python main.py --exp_name=margin_r2
+python main.py --exp_name=margin_r3
