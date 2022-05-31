@@ -8,6 +8,9 @@ from day_recorder import DRElement
 from day_recorder import DayRecorder
 
 
+DS_ROOT = Path('/goat-nas/Datasets/spal/progression_demo')
+
+
 def __choice_perc(x, perc):
     # type: (Set[DRElement], float) -> Set[DRElement]
     """
@@ -38,7 +41,7 @@ def daily_update_procedure(u_range, expl_perc):
         samples of the set G and B to be moved to U' for manual
         verification by the user
     """
-    root_dir = Path(__file__).parent.parent / 'dummy_root'
+    root_dir = DS_ROOT
     recorder = DayRecorder(root_dir=root_dir)
 
     # extracts the preliminary versions of the 3 sub-sets (G, B, U)
@@ -72,8 +75,9 @@ def daily_update_procedure(u_range, expl_perc):
           f'#U={len(subsets["U"])}')
 
     print(f'----')
-    print(f'$> updating training set with G')
-    for element in subsets['G']:
+    print(f'$> updating training set with 90% of G')
+    g_train = __choice_perc(subsets['G'], perc=90)
+    for element in g_train:
         date_str, anomaly_score = element
         src_path = root_dir / 'daily_cuts' / date_str + '.jpg'
         dst_path = root_dir / 'train' / date_str + '.jpg'
@@ -81,6 +85,18 @@ def daily_update_procedure(u_range, expl_perc):
         cmd = f'mv "{src_path.abspath()}" "{dst_path.abspath()}"'
         print(f'───$> {cmd} '
               f'(anomaly_score={anomaly_score:03d}) to training set')
+
+    print(f'----')
+    print(f'$> updating test set with the remaining 10% of G')
+    g_test = subsets['G'] - g_train
+    for element in g_test:
+        date_str, anomaly_score = element
+        src_path = root_dir / 'daily_cuts' / date_str + '.jpg'
+        dst_path = root_dir / 'test' / f'good_{date_str}.jpg'
+
+        cmd = f'mv "{src_path.abspath()}" "{dst_path.abspath()}"'
+        print(f'───$> {cmd} '
+              f'(anomaly_score={anomaly_score:03d}) to test set')
 
 
 if __name__ == '__main__':

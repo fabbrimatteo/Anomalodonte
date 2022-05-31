@@ -6,9 +6,10 @@ import torch.nn as nn
 
 from models.base_model import BaseModel
 from models.residual import ResidualStack
+import pre_processing
 
 
-class AutoencoderCore(BaseModel):
+class Variational(BaseModel):
 
     def __init__(self, mid_channels=128, n_res_layers=2, code_channels=3, code_h=4, code_w=4):
         # type: (int, int, int, int, int) -> None
@@ -41,25 +42,42 @@ class AutoencoderCore(BaseModel):
             ResidualStack(m, m, mid_channels=m // 4, n_res_layers=n_res_layers),
             # --- last conv: (m, H/8, W/8) -> (code_channels, H/8, W/8)
             nn.Conv2d(mid_channels, code_channels, kernel_size=3, stride=1, padding=1),
-            # nn.Tanh()
+            nn.Tanh()
+        )
+
+        code_size = self.code_channels * self.code_h * self.code_w
+
+        self.fc_mu = nn.Linear(
+            in_features=3072,
+            out_features=code_size
+        )
+
+        self.fc_logvar = nn.Linear(
+            in_features=3072,
+            out_features=code_size
+        )
+
+        self.fc_up = nn.Sequential(
+            nn.Linear(
+                in_features=code_size,
+                out_features=3072
+            ),
+            nn.SiLU()
         )
 
         self.decoder = nn.Sequential(
             # --- first conv: (code_channels, H/8, W/8) -> (m, H/8, W/8)
-            nn.Conv2d(code_channels, mid_channels, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(code_channels, mid_channels, kernel_size=(3, 3), stride=1, padding=1),
             # --- residual part: (m, H/8, W/8) -> (m, H/8, W/8)
             ResidualStack(m, m, mid_channels=m // 4, n_res_layers=n_res_layers),
             nn.Conv2d(m, m, kernel_size=3, stride=1, padding=1),
             # --- upscale part: (m, H/8, W/8) -> (3, H, W)
             nn.Upsample(scale_factor=2),
-            nn.Conv2d(m, m // 2, kernel_size=3, stride=1, padding=1),
-            nn.SiLU(),
+            nn.Conv2d(m, m // 2, kernel_size=3, stride=1, padding=1), nn.SiLU(),
             nn.Upsample(scale_factor=2),
-            nn.Conv2d(m // 2, m // 2, kernel_size=3, stride=1, padding=1),
-            nn.SiLU(),
+            nn.Conv2d(m // 2, m // 2, kernel_size=3, stride=1, padding=1), nn.SiLU(),
             nn.Upsample(scale_factor=2),
-            nn.Conv2d(m // 2, 3, kernel_size=3, stride=1, padding=1),
-            nn.Sigmoid()
+            nn.Conv2d(m // 2, 3, kernel_size=3, stride=1, padding=1), nn.Sigmoid()
         )
 
         self.cache = {}
@@ -67,30 +85,35 @@ class AutoencoderCore(BaseModel):
 
         self.kaiming_init(activation='LeakyReLU')
 
+        self.kl_loss = 0
+        self.normal = torch.distributions.Normal(0, 1)
+
 
     def encode(self, x):
         # type: (torch.Tensor) -> torch.Tensor
 
-        code = self.encoder(x)
+        h = self.encoder(x)
+        self.cache['shape'] = h.shape
+        flat_h = h.view(h.shape[0], -1)
 
-        # save code shape (H, W) before adaptive average pooling
-        # this information will be used by the decoder
-        self.cache['h'] = code.shape[2]
-        self.cache['w'] = code.shape[3]
-        h = code.shape[2] if self.code_h is None else self.code_h
-        w = code.shape[3] if self.code_w is None else self.code_w
+        mu = self.fc_mu(flat_h)
+        log_var = self.fc_logvar(flat_h)
+        std = torch.exp(0.5 * log_var)
 
-        code = nn.AdaptiveAvgPool2d((h, w))(code)
-        # code_norm = torch.norm(code, p=2, dim=[1, 2, 3], keepdim=True)
-        # code = code / code_norm
+        if self.training:
+            code = mu + std * self.normal.sample(mu.shape)
+            __k = 1 + log_var - mu.pow(2) - log_var.exp()
+            self.kl_loss = -0.5 * torch.mean(__k)
+        else:
+            code = mu
 
         return code
 
 
     def decode(self, code):
         # type: (torch.Tensor) -> torch.Tensor
-        __h, __w = self.cache['h'], self.cache['w']
-        code = nn.AdaptiveAvgPool2d((__h, __w))(code)
+        code = self.fc_up(code)
+        code = code.view(self.cache['shape'])
         y = self.decoder(code)
         return y
 
@@ -132,6 +155,28 @@ class AutoencoderCore(BaseModel):
         self.load_state_dict(__state['state_dict'])
 
 
+    def to(self, *args, **kwargs):
+        device = args[0]
+        super(Variational, self).to(device)
+        self.normal.loc = self.normal.loc.to(device)
+        self.normal.scale = self.normal.scale.to(device)
+        return self
+
+
+    def get_flat_code(self, img):
+        # type: (np.ndarray) -> torch.Tensor
+        """
+        ...
+        """
+
+        pre_proc_tr = pre_processing.PreProcessingTr(to_tensor=True)
+
+        x = pre_proc_tr(img)
+        x = x.unsqueeze(0).to(self.device)
+        code = self.encode(x)
+        return code.cpu().numpy().reshape(-1)
+
+
 # ---------
 
 def main():
@@ -140,7 +185,7 @@ def main():
 
     x = torch.rand((batch_size, 3, 256, 256)).to(device)
 
-    model = AutoencoderCore(
+    model = Variational(
         n_res_layers=2, code_channels=3, code_h=4, code_w=4
     ).to(device)
 
@@ -152,7 +197,7 @@ def main():
     print(f'$> code shape: {tuple(code.shape)}')
 
     in_size = x.shape[1] * x.shape[2] * x.shape[3]
-    code_size = code.shape[1] * code.shape[2] * code.shape[3]
+    code_size = code.shape[-1]
     print(f'$> code is {in_size / code_size:.02f} times smaller than input')
 
 

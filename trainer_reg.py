@@ -14,8 +14,9 @@ from torch.utils.tensorboard import SummaryWriter
 from conf import Conf
 from dataset.spal_ds import SpalDS
 from eval.lof import Loffer
+from models import Autoencoder
+from models.diff_loss import CodeDiffLoss
 from models.rec_loss import RecLoss
-from models.variational import Variational
 from progress_bar import ProgressBar
 
 
@@ -37,12 +38,12 @@ class Trainer(object):
         # init test loader
         test_set = SpalDS(cnf, mode='test')
         self.test_loader = DataLoader(
-            dataset=test_set, batch_size=cnf.batch_size, num_workers=1,
+            dataset=test_set, batch_size=cnf.batch_size // 4, num_workers=1,
             worker_init_fn=test_set.wif_test, shuffle=False, pin_memory=False,
         )
 
         # init model
-        self.model = Variational(
+        self.model = Autoencoder(
             code_channels=cnf.code_channels,
             code_h=cnf.code_h, code_w=cnf.code_w
         )
@@ -76,6 +77,8 @@ class Trainer(object):
             self.rec_loss_fn = lambda x, y: 100 * torch.nn.MSELoss()(x, y)
         else:
             raise ValueError(f'unsupported loss function "{self.rec_loss_fn}"')
+
+        self.diff_loss_fn = CodeDiffLoss(batch_size=cnf.batch_size)
 
 
     def load_ck(self):
@@ -117,7 +120,7 @@ class Trainer(object):
 
         times = []
         train_losses = []
-        kl_losses = []
+        int_losses = []
         rec_losses = []
         for step, sample in enumerate(self.train_loader):
             t = time()
@@ -127,15 +130,25 @@ class Trainer(object):
             x, y_true, _ = sample
             x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
 
-            y_pred = self.model.forward(x)
+            code_pred = self.model.encode(x)
+            y_pred = self.model.decode(code_pred)
 
+            # interpolation loss
+            if self.cnf.int_loss_w > 0:
+                int_loss = self.diff_loss_fn.forward3(code_pred)
+            else:
+                int_loss = torch.tensor([0]).to(self.cnf.device)
+            int_losses.append(int_loss.item())
+
+            # reconstruction loss
             rec_loss = self.rec_loss_fn(y_pred, y_true)
-            kl_loss = self.model.kl_loss
-            kl_w = min(0.1 + 0.0035 * self.epoch, 1)
-            loss = rec_loss + kl_w * kl_loss
-
             rec_losses.append(rec_loss.item())
-            kl_losses.append(kl_loss.item())
+
+            # global loss: weighted sum of reconstruction
+            # and interpolation losses
+            rec_loss = self.cnf.rec_loss_w * rec_loss
+            int_loss = self.cnf.int_loss_w * int_loss
+            loss = rec_loss + int_loss
             train_losses.append(loss.item())
 
             loss.backward()
@@ -157,8 +170,8 @@ class Trainer(object):
             scalar_value=np.mean(rec_losses)
         )
         self.sw.add_scalar(
-            tag='kl_loss', global_step=self.epoch,
-            scalar_value=np.mean(kl_losses)
+            tag='int_loss', global_step=self.epoch,
+            scalar_value=np.mean(int_losses)
         )
         self.sw.add_scalar(
             tag='train_loss', global_step=self.epoch,
@@ -177,8 +190,12 @@ class Trainer(object):
 
         t = time()
 
-        train_dir = self.cnf.ds_path / 'train' / self.cnf.cam_id
-        test_dir = self.cnf.ds_path / 'test' / self.cnf.cam_id
+        train_dir = self.cnf.ds_path / 'train'
+        test_dir = self.cnf.ds_path / 'test'
+        if self.cnf.cam_id is not None:
+            train_dir = train_dir / self.cnf.cam_id
+            test_dir = test_dir / self.cnf.cam_id
+
         loffer = Loffer(
             train_dir=train_dir, model=self.model,
             n_neighbors=20,
@@ -191,7 +208,8 @@ class Trainer(object):
         for step, sample in enumerate(self.test_loader):
             x, y_true, _ = sample
             x, y_true = x.to(self.cnf.device), y_true.to(self.cnf.device)
-            y_pred = self.model.forward(x)
+            code = self.model.encode(x)
+            y_pred = self.model.decode(code)
 
             loss = self.rec_loss_fn(y_pred, y_true)
             test_losses.append(loss.item())
@@ -199,11 +217,17 @@ class Trainer(object):
             # draw results for this step in a 2 rows grid:
             # row #1: predicted_output (y_pred)
             # row #2: target (y_true)
-            if step % 4 == 0:
-                grid = torch.cat([y_pred, y_true], dim=0)
+            if step % 2 == 0:
+                bs = x.shape[0] // 2
+                y_pred = y_pred[:bs, ...]
+                y_true = y_true[:bs, ...]
+                code = code[:bs, ...]
+                code = (0.5 * (code + 1))
+                code = torch.nn.Upsample(size=(256, 256))(code)
+                grid = torch.cat([code, y_pred, y_true], dim=0)
                 grid = tv.utils.make_grid(
                     grid, normalize=True,
-                    value_range=(0, 1), nrow=x.shape[0]
+                    value_range=(0, 1), nrow=bs
                 )
                 self.sw.add_image(
                     tag=f'results_{step}', img_tensor=grid,

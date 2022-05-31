@@ -43,7 +43,10 @@ class SpalDS(Dataset):
         if mode == 'train':
             print(f'$> loading images into memory: please wait...')
 
-        all_paths = (self.cnf.ds_path / mode / self.cnf.cam_id).files()
+        if self.cnf.cam_id is not None:
+            all_paths = (self.cnf.ds_path / mode / self.cnf.cam_id).files()
+        else:
+            all_paths = (self.cnf.ds_path / mode).files()
         all_paths.sort(key=lambda p: p.basename())
 
         for i, img_path in enumerate(all_paths):
@@ -138,7 +141,7 @@ class SpalDS(Dataset):
 
 
 def main():
-    cnf = Conf(exp_name='mar2022')
+    cnf = Conf(exp_name='debug')
     cnf.data_aug = True
     ds = SpalDS(cnf=cnf, mode='train')
     for i in range(len(ds)):

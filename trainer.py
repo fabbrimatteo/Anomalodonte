@@ -17,7 +17,7 @@ from eval.lof import Loffer
 from models import Autoencoder
 from models.rec_loss import RecLoss
 from progress_bar import ProgressBar
-from regularization import interpol_loss
+from interpolation import interpol_loss
 
 
 class Trainer(object):
@@ -188,8 +188,12 @@ class Trainer(object):
 
         t = time()
 
-        train_dir = self.cnf.ds_path / 'train' / self.cnf.cam_id
-        test_dir = self.cnf.ds_path / 'test' / self.cnf.cam_id
+        train_dir = self.cnf.ds_path / 'train'
+        test_dir = self.cnf.ds_path / 'test'
+        if self.cnf.cam_id is not None:
+            train_dir = train_dir / self.cnf.cam_id
+            test_dir = test_dir / self.cnf.cam_id
+
         loffer = Loffer(
             train_dir=train_dir, model=self.model,
             n_neighbors=20,

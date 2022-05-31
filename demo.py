@@ -103,4 +103,4 @@ def demo(exp_name):
 
 
 if __name__ == '__main__':
-    demo(exp_name='reg1')
+    demo(exp_name='margin_r1')

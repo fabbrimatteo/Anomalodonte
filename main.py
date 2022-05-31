@@ -29,7 +29,7 @@ def main(exp_name, conf_file_path, seed):
     # type: (str, str, int) -> None
 
     from conf import Conf
-    from trainer2 import Trainer
+    from trainer import Trainer
 
     # if `exp_name` is None,
     # ask the user to enter it
