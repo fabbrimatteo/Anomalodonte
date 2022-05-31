@@ -24,3 +24,4 @@ class RecLoss(_Loss):
         # type: (torch.Tensor, torch.Tensor) -> torch.Tensor
         return self.w1 * self.l1(y_pred, y_true) + \
                self.w2 * self.ms_ssim(y_pred, y_true)
+

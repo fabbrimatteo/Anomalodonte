@@ -133,18 +133,30 @@ def clean_cpath(cpath):
     return cpath
 
 
+def cut_full_img(img, cam_name, side):
+    # type: (str, str, int) -> np.ndarray
+    """
+    :param img: full size image you want to cut
+    :param cam_name: name of the camera that has taken the image
+    :param side: side [px] of the square cut
+    :return: square cut of the image with shape (side, side, 3)
+    """
+    x_min, y_min, x_max, y_max = BOX_DICT[cam_name]
+    cut = img[y_min:y_max, x_min:x_max]
+    return cv2.resize(cut, (side, side), interpolation=cv2.INTER_AREA)
+
+
 def read_and_cut(img_mpath, cam_name, side=256):
     # type: (str, str, int) -> np.ndarray
     """
     :param img_mpath: path of the image you want to read and cut
         ->> full image in the "maugeri" dataset
     :param cam_name: name of the camera that has taken the image
+    :param side: side [px] of the square cut
     :return: square cut of the image with shape (side, side, 3)
     """
-    x_min, y_min, x_max, y_max = BOX_DICT[cam_name]
     img = cv2.imread(img_mpath)
-    cut = img[y_min:y_max, x_min:x_max]
-    return cv2.resize(cut, (side, side), interpolation=cv2.INTER_AREA)
+    return cut_full_img(img, cam_name, side)
 
 
 class Checker(object):

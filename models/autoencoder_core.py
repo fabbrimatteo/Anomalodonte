@@ -41,7 +41,7 @@ class AutoencoderCore(BaseModel):
             ResidualStack(m, m, mid_channels=m // 4, n_res_layers=n_res_layers),
             # --- last conv: (m, H/8, W/8) -> (code_channels, H/8, W/8)
             nn.Conv2d(mid_channels, code_channels, kernel_size=3, stride=1, padding=1),
-            # nn.Tanh()
+            nn.Tanh()
         )
 
         self.decoder = nn.Sequential(
@@ -81,6 +81,7 @@ class AutoencoderCore(BaseModel):
         w = code.shape[3] if self.code_w is None else self.code_w
 
         code = nn.AdaptiveAvgPool2d((h, w))(code)
+        self.cache['last_code'] = code
         # code_norm = torch.norm(code, p=2, dim=[1, 2, 3], keepdim=True)
         # code = code / code_norm
 
@@ -100,6 +101,26 @@ class AutoencoderCore(BaseModel):
         code = self.encode(x)
         x = self.decode(code)
         return x
+
+
+    def decoder_l2_reg(self):
+        # type: () -> torch.Tensor
+        #e-5
+        l2_reg = torch.tensor(0).to(self.device)
+        for p in self.decoder.parameters():
+            l2_reg = l2_reg + p.pow(2.0).sum()
+        return l2_reg
+
+
+    def code_norm(self):
+        # type: () -> torch.Tensor
+        #e-3
+        code = self.cache['last_code']
+        code_norm = torch.linalg.norm(
+            code.view(code.shape[0], -1),
+            ord=2, dim=1
+        )
+        return code_norm.mean()
 
 
     def save_w(self, path, anomaly_th=None, cnf_dict=None):
@@ -136,7 +157,7 @@ class AutoencoderCore(BaseModel):
 
 def main():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    batch_size = 8
+    batch_size = 7
 
     x = torch.rand((batch_size, 3, 256, 256)).to(device)
 
