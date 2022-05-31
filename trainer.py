@@ -15,9 +15,9 @@ from conf import Conf
 from dataset.spal_ds import SpalDS
 from eval.lof import Loffer
 from models import Autoencoder
+from models.inter_loss import interpol_loss
 from models.rec_loss import RecLoss
 from progress_bar import ProgressBar
-from interpolation import interpol_loss
 
 
 class Trainer(object):
@@ -76,7 +76,10 @@ class Trainer(object):
         elif self.cnf.loss_fn == 'MSE':
             self.rec_loss_fn = lambda x, y: 100 * torch.nn.MSELoss()(x, y)
         else:
-            raise ValueError(f'unsupported loss function "{self.rec_loss_fn}"')
+            raise ValueError(
+                f'unsupported loss function '
+                f'"{self.rec_loss_fn}"'
+            )
 
 
     def load_ck(self):
@@ -213,8 +216,9 @@ class Trainer(object):
             test_losses.append(loss.item())
 
             # draw results for this step in a 2 rows grid:
-            # row #1: predicted_output (y_pred)
-            # row #2: target (y_true)
+            # ->> row #1: predicted code (same size as `y_pred`)
+            # ->> row #2: predicted output (y_pred)
+            # ->> row #3: target (y_true)
             if step % 2 == 0:
                 bs = x.shape[0] // 2
                 y_pred = y_pred[:bs, ...]
