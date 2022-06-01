@@ -87,9 +87,9 @@ def demo():
             if not read_ok:
                 break
             else:
-                cut = cut_full_img(img=frame, cam_name='cam_1', side=256)
-                cv2.imshow('', cut)
-                cv2.waitKey(1)
+                # cut = cut_full_img(img=frame, cam_name='cam_1', side=256)
+                # cv2.imshow('', cut)
+                # cv2.waitKey(1)
                 print(f'───$> sample #{i} of day #{day}')
 
 
