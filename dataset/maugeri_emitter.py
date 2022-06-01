@@ -4,7 +4,7 @@ import cv2
 import mmu
 from path import Path
 
-from ds_utils import mpath2info, cpath2info
+from dataset.ds_utils import mpath2info, cpath2info
 
 
 class Emitter(object):
