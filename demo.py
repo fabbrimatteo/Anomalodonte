@@ -26,14 +26,16 @@ def demo(exp_name):
 
     # init autoencoder
     model = AutoencoderPlus.init_from_pth(
-        cnf.exp_log_path / 'best.pth',
+        cnf.exp_log_path / 'last.pth',
         device=cnf.device, mode='eval'
     )
 
     # init "Loffer" object
+    train_dir = cnf.ds_path / 'train'
+    if cnf.cam_id is not None:
+        train_dir = train_dir / cnf.cam_id
     loffer = Loffer(
-        train_dir=SPAL_PATH / 'train' / cnf.cam_id,
-        model=model, n_neighbors=20
+        train_dir=train_dir, model=model, n_neighbors=12
     )
 
     # "demo_test" contains all test images with their predicted
@@ -48,7 +50,9 @@ def demo(exp_name):
     os.system(f'rm -r "{cnf.exp_log_path}/demo_train"')
     os.system(f'mkdir "{cnf.exp_log_path}/demo_train"')
 
-    test_dir = SPAL_PATH / 'test' / cnf.cam_id
+    test_dir = cnf.ds_path / 'test'
+    if cnf.cam_id is not None:
+        test_dir = test_dir / cnf.cam_id
     metrics, _ = loffer.evaluate(test_dir)
 
     # save training outliers in "demo_train"
@@ -103,4 +107,4 @@ def demo(exp_name):
 
 
 if __name__ == '__main__':
-    demo(exp_name='margin_r1')
+    demo(exp_name='progression')
