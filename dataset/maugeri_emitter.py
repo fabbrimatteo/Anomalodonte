@@ -1,7 +1,6 @@
 from time import sleep
 
 import cv2
-import mmu
 from path import Path
 
 from dataset.ds_utils import mpath2info, cpath2info
@@ -65,7 +64,6 @@ class Emitter(object):
             img_path = self.all_paths[self.index]
             img = cv2.imread(img_path)
             self.index += 1
-            sleep(1.25)
             return True, img
         else:
             return False, None

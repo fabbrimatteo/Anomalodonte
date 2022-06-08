@@ -49,7 +49,8 @@ class Conf(object):
         return y
 
 
-    def __init__(self, conf_file_path=None, seed=None, exp_name=None, log=True):
+    def __init__(self, conf_file_path=None, seed=None, exp_name=None,
+                 log=True, proj_log_path=None):
         # type: (str, int, str, bool) -> None
         """
         :param conf_file_path: optional path of the configuration file
@@ -69,7 +70,11 @@ class Conf(object):
         print(u_str + '\n' + m_str + '\n' + b_str)
 
         # define output paths
-        self.proj_log_path = Path(__file__).parent.parent.abspath() / 'log'
+        if proj_log_path is None:
+            self.proj_log_path = Path(__file__).parent.parent.abspath() / 'log'
+        else:
+            self.proj_log_path = Path(proj_log_path)
+
         self.exp_log_path = self.proj_log_path / exp_name  # type: Path
 
         # set random seed

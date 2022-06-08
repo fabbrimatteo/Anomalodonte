@@ -6,7 +6,7 @@ MAX_PATIENCE: 32
 # dataloader params
 N_WORKERS: 4
 BATCH_SIZE: 32
-DS_PATH: '/goat-nas/Datasets/spal/progression_demo'
+DS_PATH: '/goat-nas/Datasets/spal/progression_demo/start_sets'
 CAM_ID: null
 
 # loss params
