@@ -50,7 +50,7 @@ class Conf(object):
 
 
     def __init__(self, conf_file_path=None, seed=None, exp_name=None,
-                 log=True, proj_log_path=None):
+                 log=True, proj_log_path=None, yaml_file_path=None):
         # type: (str, int, str, bool) -> None
         """
         :param conf_file_path: optional path of the configuration file
@@ -75,7 +75,7 @@ class Conf(object):
         else:
             self.proj_log_path = Path(proj_log_path)
 
-        self.exp_log_path = self.proj_log_path / exp_name  # type: Path
+        self.exp_log_path = self.proj_log_path / self.exp_name  # type: Path
 
         # set random seed
         self.seed = set_seed(seed)  # type: int
@@ -84,7 +84,10 @@ class Conf(object):
 
         # if the configuration file is not specified
         # try to load a configuration file based on the experiment name
-        tmp = Path(__file__).parent / (self.exp_name + '.yaml')
+        if yaml_file_path is None:
+            tmp = Path(__file__).parent / (self.exp_name + '.yaml')
+        else:
+            tmp = yaml_file_path
         if conf_file_path is None and tmp.exists():
             conf_file_path = tmp
 

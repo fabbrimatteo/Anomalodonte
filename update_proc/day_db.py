@@ -185,6 +185,7 @@ class DayDB(object):
         # >> all_paths[-1] is the path of the youngest image
         all_paths.sort(key=lambda p: p.basename())
 
+        print(f'----')
         print(f'$> there are {len(all_paths)} cuts '
               f'in {source_dir_path} and buffer size is {buffer_size}')
 
@@ -221,12 +222,27 @@ class DayDB(object):
         self.clean_dataset(self.test_dir, self.test_buffer_size)
 
 
+    def update_dataset_all(self):
+        all_cuts = set([(k, self.info[k]) for k in self.info])
+
+        for element in all_cuts:
+            date_str, anomaly_score = element
+            src_path = self.daily_cuts_dir / date_str + '.jpg'
+            dst_path = self.train_dir / date_str + '.jpg'
+
+            cmd = f'mv "{src_path.abspath()}" "{dst_path.abspath()}"'
+            os.system(cmd)
+            print(f'───$> {cmd} '
+                  f'(anomaly_score={anomaly_score:03d}) to training set')
+
+
     def add(self, img_cut, anomaly_score):
         # type: (np.ndarray, int) -> None
 
         # obtain current date string
         if self.debug:
             now = self.start_datetime + timedelta(seconds=self.counter)
+            self.counter += 1
         else:
             now = datetime.now()
         date_str = f'{now.year}_{now.month:02d}_{now.day:02d}'

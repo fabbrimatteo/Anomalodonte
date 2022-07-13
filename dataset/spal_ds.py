@@ -57,15 +57,17 @@ class SpalDS(Dataset):
             x = pre_processing.bgr2rgb(x)
             self.imgs.append(x)
 
-            self.data_aug = iaa.SomeOf(
-                n=(0, 3),
-                children=[
-                    iaa.AddToHue((-16, 16)),
-                    iaa.AddToBrightness((-16, 16), to_colorspace='HSV'),
-                    iaa.AddToSaturation((-16, 16))
-                ],
-                random_order=True
-            )
+            self.data_aug = iaa.Sometimes(
+                p=0.5,
+                then_list=iaa.SomeOf(
+                    n=(1, 3),
+                    children=[
+                        iaa.AddToHue((-16, 16)),
+                        iaa.AddToBrightness((-16, 16), to_colorspace='HSV'),
+                        iaa.AddToSaturation((-16, 16))
+                    ],
+                    random_order=True
+                ))
 
             # (1) in `training` mode, all images have label "good"
             # (2) in `test` mode the label of an image can be
@@ -107,6 +109,7 @@ class SpalDS(Dataset):
             img = self.data_aug.augment_image(img)
 
         x = self.to_tensor(img)
+        # x = img
         y = self.to_tensor(img)
 
         return x, y, label
@@ -141,12 +144,16 @@ class SpalDS(Dataset):
 
 
 def main():
-    cnf = Conf(exp_name='debug')
+    import cv2
+
+    cnf = Conf(exp_name='progression')
     cnf.data_aug = True
     ds = SpalDS(cnf=cnf, mode='train')
     for i in range(len(ds)):
         x, y, label = ds[i]
         print(x.shape, y.shape, label)
+        cv2.imshow('', x[:,:,::-1])
+        cv2.waitKey()
 
 
 if __name__ == '__main__':

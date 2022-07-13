@@ -4,12 +4,14 @@
 from time import time
 
 import numpy as np
+
+# this MUST be imported before `import torch`
+from torch.utils.tensorboard import SummaryWriter
+
 import torch
 import torchvision as tv
 from torch import optim
 from torch.utils.data import DataLoader
-# this MUST be imported before `import torch`
-from torch.utils.tensorboard import SummaryWriter
 
 from conf import Conf
 from dataset.spal_ds import SpalDS
@@ -18,6 +20,8 @@ from models import Autoencoder
 from models.inter_loss import interpol_loss
 from models.rec_loss import RecLoss
 from progress_bar import ProgressBar
+from visual_utils import draw_anomaly_ui
+from post_processing import tensor2img
 
 
 class Trainer(object):
@@ -26,35 +30,36 @@ class Trainer(object):
         # type: (Conf) -> Trainer
 
         self.cnf = cnf
+        self.res_out_path = self.cnf.proj_log_path / self.cnf.exp_name / 'res'
 
         # init train loader
-        training_set = SpalDS(cnf, mode='train')
+        training_set = SpalDS(self.cnf, mode='train')
         self.train_loader = DataLoader(
-            dataset=training_set, batch_size=cnf.batch_size, num_workers=4,
+            dataset=training_set, batch_size=self.cnf.batch_size, num_workers=4,
             worker_init_fn=training_set.wif, shuffle=True, pin_memory=True,
             drop_last=True,
         )
 
         # init test loader
-        test_set = SpalDS(cnf, mode='test')
+        test_set = SpalDS(self.cnf, mode='test')
         self.test_loader = DataLoader(
-            dataset=test_set, batch_size=cnf.batch_size // 4, num_workers=1,
+            dataset=test_set, batch_size=self.cnf.batch_size // 4, num_workers=1,
             worker_init_fn=test_set.wif_test, shuffle=False, pin_memory=False,
         )
 
         # init model
         self.model = Autoencoder(
-            code_channels=cnf.code_channels,
-            code_h=cnf.code_h, code_w=cnf.code_w
+            code_channels=self.cnf.code_channels,
+            code_h=self.cnf.code_h, code_w=self.cnf.code_w
         )
-        self.model = self.model.to(cnf.device)
+        self.model = self.model.to(self.cnf.device)
 
         # init optimizer
-        self.optimizer = optim.Adam(params=self.model.parameters(), lr=cnf.lr)
+        self.optimizer = optim.Adam(params=self.model.parameters(), lr=self.cnf.lr)
 
         # init logging stuffs
-        self.log_path = cnf.exp_log_path
-        print(f'tensorboard --logdir={cnf.proj_log_path.abspath()}\n')
+        self.log_path = self.cnf.exp_log_path
+        print(f'tensorboard --logdir={self.cnf.proj_log_path.abspath()}\n')
         self.sw = SummaryWriter(self.log_path)
         self.log_freq = len(self.train_loader)
 
@@ -201,7 +206,8 @@ class Trainer(object):
             train_dir=train_dir, model=self.model,
             n_neighbors=20,
         )
-        ad_rates, top16_errs = loffer.evaluate(test_dir=test_dir)
+        ad_rates, top16_errs = loffer.evaluate(test_dir=test_dir,
+                                               out_dir=self.res_out_path)
         lof_ba = ad_rates['bal_acc']
         accuracy = lof_ba
 
@@ -219,8 +225,8 @@ class Trainer(object):
             # ->> row #1: predicted code (same size as `y_pred`)
             # ->> row #2: predicted output (y_pred)
             # ->> row #3: target (y_true)
-            if step % 2 == 0:
-                bs = x.shape[0] // 2
+            bs = x.shape[0] // 2
+            if step % 2 == 0 and bs > 0:
                 y_pred = y_pred[:bs, ...]
                 y_true = y_true[:bs, ...]
                 code = code[:bs, ...]
@@ -284,18 +290,13 @@ class Trainer(object):
             global_step=self.epoch
         )
 
-        if self.patience == 0:
-            print('\n--------')
-            print(f'[■] Done! -> `patience` reached 0.')
-            exit(0)
-
 
     def run(self):
         """
         start model training procedure (train > test > checkpoint > repeat)
         """
 
-        for _ in range(self.epoch, self.cnf.epochs):
+        while True:
             self.train()
 
             with torch.no_grad():
@@ -303,3 +304,14 @@ class Trainer(object):
 
             self.epoch += 1
             self.save_ck()
+
+            stop_condition_1 = self.epoch >= self.cnf.epochs
+            stop_condition_2 = self.patience <= 0
+            if stop_condition_1 or stop_condition_2:
+                break
+
+        print('\n--------')
+        if stop_condition_1:
+            print(f'[■] Done! -> max epoch has been reached.')
+        elif stop_condition_2:
+            print(f'[■] Done! -> `patience` reached 0.')

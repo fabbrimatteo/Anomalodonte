@@ -8,6 +8,7 @@ from sklearn.neighbors import LocalOutlierFactor
 from eval.sorted_buffer import SortedBuffer
 from eval.utils import bin_class_metrics
 from models.autoencoder_plus import AutoencoderPlus
+from visual_utils import draw_anomaly_ui
 
 
 class Loffer(object):
@@ -25,12 +26,12 @@ class Loffer(object):
 
         # build list of sorted training images
         # >> images are in ascending alphabetical order
-        train_paths = list(train_dir.files())
-        train_paths = sorted(train_paths)
+        self.train_paths = list(train_dir.files())
+        self.train_paths = sorted(self.train_paths)
 
         # build list of code (one code for each training image)
         train_codes = []
-        for j, img_path in enumerate(train_paths):
+        for j, img_path in enumerate(self.train_paths):
             img = cv2.imread(img_path)
             flat_code = model.get_flat_code(img)
             train_codes.append(flat_code)
@@ -40,7 +41,7 @@ class Loffer(object):
         self.lof_train = LocalOutlierFactor(
             n_neighbors=n_neighbors, novelty=False
         )
-        labels = self.lof_train.fit_predict(train_codes)
+        self.train_labels = self.lof_train.fit_predict(train_codes)
 
         # score training samples
         train_scores = self.lof_train.negative_outlier_factor_
@@ -50,12 +51,12 @@ class Loffer(object):
 
         self.train_outliers = {}
         for i in idxs:
-            key = train_paths[i]
+            key = self.train_paths[i]
             self.train_outliers[key] = train_scores[i]
 
         # remove outliers from training codes
         # n0 = len(train_codes)
-        train_codes = np.array(train_codes)[labels == 1]
+        train_codes = np.array(train_codes)[self.train_labels == 1]
         # n1 = len(train_codes)
         # print(f'$> {n0 - n1} outlier(s) removed')
 
@@ -67,6 +68,9 @@ class Loffer(object):
         )
         self.lof.fit(train_codes)
 
+
+    def get_train_labels(self):
+        return list(zip(self.train_paths, self.train_labels.tolist()))
 
     def get_anomaly_perc(self, img):
         # type: (np.ndarray) -> float
@@ -96,7 +100,10 @@ class Loffer(object):
         return anomaly_score
 
 
-    def evaluate(self, test_dir):
+    def evaluate(self, test_dir, out_dir=None):
+
+        if out_dir:
+            out_dir.makedirs_p()
 
         labels_true = []
         labels_pred = []
@@ -115,6 +122,11 @@ class Loffer(object):
             labels_true.append(label_true)
             label_pred = 'good' if ap_pred < 50 else 'bad'
             labels_pred.append(label_pred)
+
+            if out_dir:
+                img_ui = draw_anomaly_ui(img, ap_pred, label_true)
+                cv2.imwrite(out_dir / img_path.basename(), img_ui)
+
 
         rates_dict = bin_class_metrics(
             labels_pred=np.array(labels_pred),
