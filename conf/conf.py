@@ -106,6 +106,8 @@ class Conf(object):
         self.lr = y.get('LR', 0.0001)  # type: float
         self.epochs = y.get('EPOCHS', 10)  # type: int
         self.max_patience = y.get('MAX_PATIENCE', 8)  # type: int
+        self.pretrained_weights_path = \
+            y.get('PRETRAINED_WEIGHTS_PATH', None)  # type: str
 
         # (2) dataset/dataloader parameters
         self.ds_path = y.get('DS_PATH', None)  # type: str

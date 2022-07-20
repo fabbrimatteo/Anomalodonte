@@ -16,7 +16,7 @@ DRElement = Tuple[str, int]
 class DayDB(object):
 
     def __init__(self, root_dir, train_buffer_size=5000,
-                 test_buffer_size=1000, debug=False):
+                 test_buffer_size=1000, debug=False, date=None, cam=None):
         # type: (str, int, int) -> None
         """
         :param root_dir: path of the dataset root directory
@@ -29,6 +29,9 @@ class DayDB(object):
             ->> only the `test_buffer_size` newest elements will be kept
                 in the source directory, while the others will be moved
                 to the destination directory
+        :param debug: flag for debugging purposes
+        :param date: date of the cuts
+        :param cam: camera of the cuts
         """
 
         self.root_dir = Path(root_dir)
@@ -48,8 +51,11 @@ class DayDB(object):
         self.trash_dir = self.root_dir / 'trash'
         self.trash_dir.makedirs_p()
 
+        self.scores_dir = self.root_dir / 'trash'
+        self.scores_dir.makedirs_p()
+
         # TODO: handle the file as a checkpoint
-        self.info_file_path = self.root_dir / 'today_scores.pth'
+        self.info_file_path = self.scores_dir / f'{date}_{cam}.pth'
         self.info = {}
 
         self.train_buffer_size = train_buffer_size
@@ -235,9 +241,11 @@ class DayDB(object):
             print(f'───$> {cmd} '
                   f'(anomaly_score={anomaly_score:03d}) to training set')
 
+        self.clean_dataset(self.train_dir, self.train_buffer_size)
 
-    def add(self, img_cut, anomaly_score):
-        # type: (np.ndarray, int) -> None
+
+    def add(self, img_cut, anomaly_score, cut_name=None):
+        # type: (np.ndarray, int) -> dict
 
         # obtain current date string
         if self.debug:
@@ -245,9 +253,13 @@ class DayDB(object):
             self.counter += 1
         else:
             now = datetime.now()
-        date_str = f'{now.year}_{now.month:02d}_{now.day:02d}'
-        date_str = f'{date_str}_{now.hour:02d}_{now.minute:02d}'
-        date_str = f'{date_str}_{now.second:02d}'
+
+        if cut_name is None:
+            date_str = f'{now.year}_{now.month:02d}_{now.day:02d}'
+            date_str = f'{date_str}_{now.hour:02d}_{now.minute:02d}'
+            date_str = f'{date_str}_{now.second:02d}'
+        else:
+            date_str = cut_name
 
         self.info[date_str] = anomaly_score
 
@@ -256,6 +268,8 @@ class DayDB(object):
         cv2.imwrite(out_img_path, img_cut)
 
         self.save_info()
+
+        return self.info
 
 
     def __choice_perc(self, x, perc):

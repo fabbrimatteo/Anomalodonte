@@ -1,1 +1,1 @@
-from models.autoencoder_plus import AutoencoderPlus as Autoencoder
+from models.autoencoder_plus import AutoencoderPlus

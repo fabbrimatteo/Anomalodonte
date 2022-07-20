@@ -27,11 +27,11 @@ def mpath2info(mpath):
             >> values in {1, 2, 3}
         'label': annotation given by the operator:
             >> values in {'good', 'bad', 'unknown'}
-        'original_name': original file name
+        'original_path': original file path
     """
     if type(mpath) is str:
         mpath = Path(mpath)
-    date, tag, cam_and_label = mpath.basename().split('_')
+    date, uid, cam_and_label = mpath.basename().split('_')
 
     # parse date
     date = datetime(
@@ -59,7 +59,8 @@ def mpath2info(mpath):
         'datestr': date.strftime('%Y_%m_%d_%H_%M_%S'),
         'camera-id': int(cam),
         'label': label,
-        'original_name': str(mpath.basename()),
+        'original_name': str(mpath),
+        'uid': uid
     }
 
     return info
@@ -77,7 +78,7 @@ def cpath2info(cpath):
             >> values in {1, 2, 3}
         'label': annotation given by the operator:
             >> values in {'good', 'bad', 'unknown'}
-        'original_name': original file name
+        'original_path': original file path
         'location': is it part of training set or test set?
             >> values in {'train', 'test'}
     """
@@ -112,7 +113,7 @@ def cpath2info(cpath):
         'datestr': date.strftime('%Y_%m_%d_%H_%M_%S'),
         'camera-id': cam_id,
         'label': label,
-        'original_name': str(cpath.basename()),
+        'original_name': str(cpath),
         'location': location
     }
 

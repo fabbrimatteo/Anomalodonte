@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 from conf import Conf
 from dataset.spal_ds import SpalDS
 from eval.lof import Loffer
-from models import Autoencoder
+from models import AutoencoderPlus
 from models.inter_loss import interpol_loss
 from models.rec_loss import RecLoss
 from progress_bar import ProgressBar
@@ -48,11 +48,15 @@ class Trainer(object):
         )
 
         # init model
-        self.model = Autoencoder(
-            code_channels=self.cnf.code_channels,
-            code_h=self.cnf.code_h, code_w=self.cnf.code_w
-        )
-        self.model = self.model.to(self.cnf.device)
+        if self.cnf.pretrained_weights_path:
+            self.model = AutoencoderPlus.init_from_pth(
+                self.cnf.pretrained_weights_path, mode='train', device=cnf.device)
+        else:
+            self.model = AutoencoderPlus(
+                code_channels=self.cnf.code_channels,
+                code_h=self.cnf.code_h, code_w=self.cnf.code_w
+            )
+            self.model = self.model.to(self.cnf.device)
 
         # init optimizer
         self.optimizer = optim.Adam(params=self.model.parameters(), lr=self.cnf.lr)
@@ -60,6 +64,7 @@ class Trainer(object):
         # init logging stuffs
         self.log_path = self.cnf.exp_log_path
         print(f'tensorboard --logdir={self.cnf.proj_log_path.abspath()}\n')
+        self.log_path.makedirs_p()
         self.sw = SummaryWriter(self.log_path)
         self.log_freq = len(self.train_loader)
 

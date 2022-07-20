@@ -15,7 +15,6 @@ from visual_utils import draw_anomaly_ui
 from update_proc.day_db import DayDB
 
 
-
 def demo():
     exp_name = Path('progression')
     proj_log_path = Path('/goat-nas/Datasets/spal/progression_demo/experiments')
@@ -97,6 +96,7 @@ def demo():
                    yaml_file_path=yaml_file_path)
         cnf.ds_path = proj_log_path / exp_name
         cnf.epochs = 2
+        cnf.pretrained_weights_path = pth_file_path
         trainer = Trainer(cnf=cnf)
         trainer.run()
 
@@ -142,10 +142,11 @@ def demo():
                    proj_log_path=log_dir_path,
                    yaml_file_path=yaml_file_path)
         cnf.ds_path = proj_log_path / exp_name
+        cnf.pretrained_weights_path = pth_file_path
         trainer = Trainer(cnf=cnf)
         trainer.run()
 
-        pth_file_path = Path(cnf.exp_log_path / 'best.pth') # TODO: or last?
+        pth_file_path = Path(cnf.exp_log_path / 'best.pth')  # TODO: or last?
 
 
 if __name__ == '__main__':
