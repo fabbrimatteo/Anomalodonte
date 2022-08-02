@@ -44,21 +44,21 @@ class Loffer(object):
         self.train_labels = self.lof_train.fit_predict(train_codes)
 
         # score training samples
-        train_scores = self.lof_train.negative_outlier_factor_
-        train_scores = 100 * ((train_scores / (-1.5)) - 0.5)
-        train_scores[train_scores < 0] = 0
-        idxs = np.argwhere(train_scores > 50)[:, 0]
+        self.train_scores = self.lof_train.negative_outlier_factor_
+        self.train_scores = 100 * ((self.train_scores / (-1.5)) - 0.5)
+        self.train_scores[self.train_scores < 0] = 0
+        idxs = np.argwhere(self.train_scores > 50)[:, 0]
 
         self.train_outliers = {}
         for i in idxs:
             key = self.train_paths[i]
-            self.train_outliers[key] = train_scores[i]
+            self.train_outliers[key] = self.train_scores[i]
 
         # remove outliers from training codes
-        # n0 = len(train_codes)
+        n0 = len(train_codes)
         train_codes = np.array(train_codes)[self.train_labels == 1]
-        # n1 = len(train_codes)
-        # print(f'$> {n0 - n1} outlier(s) removed')
+        n1 = len(train_codes)
+        print(f'$> {n0 - n1} outlier(s) removed')
 
         # fit a LOF model for novelty-detection
         # using the filtered training codes
@@ -71,6 +71,9 @@ class Loffer(object):
 
     def get_train_labels(self):
         return list(zip(self.train_paths, self.train_labels.tolist()))
+
+    def get_train_scores(self):
+        return list(zip(self.train_paths, self.train_scores.tolist()))
 
     def get_anomaly_perc(self, img):
         # type: (np.ndarray) -> float
