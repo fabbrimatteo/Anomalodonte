@@ -17,37 +17,53 @@ from update_proc.day_db import DayDB
 
 class Elaborator(object):
 
-    def __init__(self, cam_id):
+    def __init__(self, cam_id, proj_log_path):
         self.cam_id = cam_id
         self.exp_name = Path(f'cam_{cam_id}')
-        self.proj_log_path = Path('/goat-nas/Datasets/spal/progression_demo/experiments')
-        self.pth_file_path = Path('/home/matteo/PycharmProjects/Anomalodonte/log/progression/last.pth') # TODO: different for each cam
-        self.dataset_path = Path('/goat-nas/Datasets/spal/progression_demo/start_sets') # TODO: different for each cam
-        self.yaml_file_path = Path('conf/progression.yaml')
+        self.proj_log_path = proj_log_path
+
+        self.cnf = Conf(exp_name=self.exp_name, proj_log_path=self.proj_log_path)
+        self.yaml_file_path = Path('conf/default.yaml')
+
+        self.pth_file_path = self.cnf.pretrained_weights_path
         self.log_dir_path = self.proj_log_path / self.exp_name / 'log'
         self.daily_res_path = self.proj_log_path / self.exp_name / 'daily_res'
 
         self.daily_results = {}
 
-        self.cnf = Conf(exp_name=self.exp_name, proj_log_path=self.proj_log_path)
         self.n_neighbors = 20
-        self.train_buffer_size = 4000 # 10000
+        self.train_buffer_size = 20000
+        self.train_buffer_size = 500  # TODO: remove
 
         self.cnf.exp_log_path.makedirs_p()
 
+        old_train_path = self.cnf.ds_path.abspath() / 'train' / f'cam_{cam_id}'
+        old_test_path = self.cnf.ds_path.abspath() / 'test' / f'cam_{cam_id}'
+        new_train_path = self.cnf.exp_log_path.abspath() / 'train'
+        new_test_path = self.cnf.exp_log_path.abspath() / 'test'
+        new_train_path.makedirs_p()
+        new_test_path.makedirs_p()
+
         # copying train and test sets
         print('Copying train and test sets...')
-        cmd = f'cp -r "{self.dataset_path.abspath()}/train" "{self.cnf.exp_log_path.abspath()}"'
-        os.system(cmd)
-        cmd = f'cp -r "{self.dataset_path.abspath()}/test" "{self.cnf.exp_log_path.abspath()}"'
-        os.system(cmd)
+        for file in old_train_path.files():
+            new_train_file_path = new_train_path / file.basename()
+            file.copy(new_train_file_path)
+
+        for file in old_test_path.files():
+            new_test_file_path = new_test_path / file.basename()
+            file.copy(new_test_file_path)
+
+        # cmd = f'cp "{self.cnf.ds_path.abspath()}/train/{cam_id}/*" "{new_train_path}"'
+        # os.system(cmd)
+        # cmd = f'cp -r "{self.cnf.ds_path.abspath()}/test/{cam_id}/*" "{new_test_path}"'
+        # os.system(cmd)
         print('Done!')
 
         self.current_date = None
         self.model = None
         self.loffer = None
         self.day_db = None
-
 
 
     def run(self, infos):
@@ -80,12 +96,13 @@ class Elaborator(object):
             cut = cut_full_img(img=frame, cam_name=f'cam_{self.cam_id}', side=256)
             anomaly_score = int(round(self.loffer.get_anomaly_score(cut)))
             self.daily_results = self.day_db.add(img_cut=cut, anomaly_score=anomaly_score,
-                            cut_name=frame_name)
+                                                 cut_name=frame_name)
 
             img_ui = draw_anomaly_ui(cut, anomaly_score)
             cv2.imwrite(today_res_path / frame_name, img_ui)
 
             print(f'───$> sample #{frame_name} of day #{self.current_date}: anomaly score {anomaly_score}')
+
 
     def end_day_routine(self):
 
@@ -96,8 +113,8 @@ class Elaborator(object):
 
         # pretraining
         self.cnf = Conf(exp_name=exp_name_day_pretrain,
-                   proj_log_path=self.log_dir_path,
-                   yaml_file_path=self.yaml_file_path)
+                        proj_log_path=self.log_dir_path,
+                        yaml_file_path=self.yaml_file_path)
         self.cnf.ds_path = self.proj_log_path / self.exp_name
         self.cnf.epochs = 2
         self.cnf.pretrained_weights_path = self.pth_file_path
@@ -131,23 +148,25 @@ class Elaborator(object):
                 elif label == 1:
                     new_path = out_split_dir_good / name + '.jpg'
 
-                cmd = f'cp "{old_path}" "{new_path}"'
-                os.system(cmd)
-                print(f'───$> {cmd}')
+                # cmd = f'cp "{old_path}" "{new_path}"'
+                # os.system(cmd)
+                Path(old_path).copy(new_path)
+                print(f'───$> copy {old_path} to {new_path}')
 
                 # TODO: move into test set?
                 if label == -1:
-                    cmd = f'rm "{old_path}"'
-                    os.system(cmd)
-                    print(f'───$> {cmd}')
+                    # cmd = f'rm "{old_path}"'
+                    # os.system(cmd)
+                    Path(old_path).remove()
+                    print(f'───$> remove {old_path}')
 
         # training
         self.cnf = Conf(exp_name=exp_name_day,
-                   proj_log_path=self.log_dir_path,
-                   yaml_file_path=self.yaml_file_path)
+                        proj_log_path=self.log_dir_path,
+                        yaml_file_path=self.yaml_file_path)
         self.cnf.ds_path = self.proj_log_path / self.exp_name
         self.cnf.pretrained_weights_path = self.pth_file_path
-        self.cnf.epochs = 2 # TODO: remove!!
+        self.cnf.epochs = 2  # TODO: remove!!
         trainer = Trainer(cnf=self.cnf)
         trainer.run()
 

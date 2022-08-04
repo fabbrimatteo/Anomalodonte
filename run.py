@@ -1,3 +1,5 @@
+import pickle
+
 from torch.utils.tensorboard import SummaryWriter
 from path import Path
 import time
@@ -6,25 +8,19 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from dataset.ds_utils import mpath2info
 from elaborator import Elaborator
-
-
-debug = False
-
-input_path = Path('/goat-nas/Datasets/spal/progression_demo/SPAL_folder')
-output_path = Path('/goat-nas/Datasets/spal/progression_demo/SPAL_container')
-
-
-# example = Path('/goat-nas/Datasets/spal/maugeri_ds/goods/2022_02_02/20220202084724_601102626722200000144902_1OK.bmp')
-# example_path = Path('/goat-nas/Datasets/spal/maugeri_ds/goods/2022_02_03')
+import yaml
 
 
 class CreationHandler(FileSystemEventHandler):
 
-    def __init__(self):
+    def __init__(self, output_path, proj_log_path):
+        self.output_path = output_path
         self.current_date = datetime.date.today()
         self.current_date = datetime.date(year=2022, month=6, day=15)  # TODO: remove
         self.infos = []
-        self.elaborator_1 = Elaborator(cam_id=1)
+        self.elaborator_1 = Elaborator(cam_id=1, proj_log_path=proj_log_path)
+        # self.elaborator_2 = Elaborator(cam_id=2, proj_log_path=proj_log_path)
+        # self.elaborator_3 = Elaborator(cam_id=3, proj_log_path=proj_log_path)
 
 
     def on_created(self, event):
@@ -35,7 +31,7 @@ class CreationHandler(FileSystemEventHandler):
         if date > self.current_date:
             self.start_sequential_elaboration()
             for info in self.infos:
-                Path(info['original_name']).move(output_path)
+                Path(info['original_name']).move(self.output_path)
             self.current_date = date
             self.infos = []
 
@@ -53,11 +49,15 @@ class CreationHandler(FileSystemEventHandler):
         print('starting elaboration cam_1')
         daily_results_cam_1 = self.elaborator_1.start(infos=cam_1_infos)
         print('starting elaboration cam_2')
-        daily_results_cam_2 = daily_results_cam_1.copy()
+        daily_results_cam_2 = self.elaborator_2.start(infos=cam_2_infos)
         print('starting elaboration cam_3')
-        daily_results_cam_3 = daily_results_cam_1.copy()
+        daily_results_cam_3 = self.elaborator_3.start(infos=cam_3_infos)
 
+        # with open('filename.pickle', 'wb') as handle:
+        #     pickle.dump(daily_results_cam_1, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # exit()
         print('SQL loading...')
+
         for file_name in daily_results_cam_1:
             anomaly_score_cam_1 = daily_results_cam_1[file_name]
             anomaly_score_cam_2 = daily_results_cam_2[file_name]
@@ -86,8 +86,6 @@ class CreationHandler(FileSystemEventHandler):
             res['ANOMALY_SCORE_P3'] = anomaly_score_cam_3 # ANOMALY_SCORE_P3 varchar(50) NOT NULL
 
 
-
-
     def score_to_label(self, score):
         label = 'OK'
         if 50 <= score < 150:
@@ -97,7 +95,14 @@ class CreationHandler(FileSystemEventHandler):
         return label
 
 def main():
-    event_handler = CreationHandler()
+    conf_file_path = 'conf/paths.yaml'
+    conf_file = open(conf_file_path, 'r')
+    y = yaml.load(conf_file, Loader=yaml.Loader)
+    input_path = y.get('INPUT_PATH', None)
+    output_path = y.get('OUTPUT_PATH', None)
+    proj_log_path = y.get('PROJ_LOG_PATH', None)
+
+    event_handler = CreationHandler(output_path=output_path, proj_log_path=proj_log_path)
     observer = Observer()
     observer.schedule(event_handler, path=input_path, recursive=False)
     observer.start()

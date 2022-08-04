@@ -142,9 +142,10 @@ class DayDB(object):
                 src_path = self.daily_cuts_dir / date_str + '.jpg'
                 dst_path = self.train_dir / date_str + '.jpg'
 
-                cmd = f'mv "{src_path.abspath()}" "{dst_path.abspath()}"'
-                os.system(cmd)
-                print(f'───$> {cmd} '
+                # cmd = f'mv "{src_path.abspath()}" "{dst_path.abspath()}"'
+                # os.system(cmd)
+                src_path.abspath().move(dst_path.abspath())
+                print(f'───$> move {src_path.abspath()} to {dst_path.abspath()}'
                       f'(anomaly_score={anomaly_score:03d}) to training set')
 
         print(f'----')
@@ -157,9 +158,10 @@ class DayDB(object):
                     src_path = self.daily_cuts_dir / date_str + '.jpg'
                     dst_path = self.test_dir / f'good_{date_str}.jpg'
 
-                    cmd = f'mv "{src_path.abspath()}" "{dst_path.abspath()}"'
-                    os.system(cmd)
-                    print(f'───$> {cmd} '
+                    # cmd = f'mv "{src_path.abspath()}" "{dst_path.abspath()}"'
+                    # os.system(cmd)
+                    src_path.abspath().move(dst_path.abspath())
+                    print(f'───$> move {src_path.abspath()} to {dst_path.abspath()}'
                           f'(anomaly_score={anomaly_score:03d}) to test set')
 
         # TODO: all the elements?
@@ -172,9 +174,10 @@ class DayDB(object):
                 src_path = self.daily_cuts_dir / date_str + '.jpg'
                 dst_path = self.test_dir / f'bad_{date_str}.jpg'
 
-                cmd = f'mv "{src_path.abspath()}" "{dst_path.abspath()}"'
-                os.system(cmd)
-                print(f'───$> {cmd} '
+                # cmd = f'mv "{src_path.abspath()}" "{dst_path.abspath()}"'
+                # os.system(cmd)
+                src_path.abspath().move(dst_path.abspath())
+                print(f'───$> move {src_path.abspath()} to {dst_path.abspath()}'
                       f'(anomaly_score={anomaly_score:03d}) to test set')
 
         # TODO: update the dataset with U
@@ -209,9 +212,10 @@ class DayDB(object):
         for p in all_paths:
             if p not in paths2keep:
                 new_path = self.trash_dir / p.basename()
-                cmd = f'mv "{p.abspath()}" "{new_path}"'
-                os.system(cmd)
-                print(f'───$> {cmd}')
+                # cmd = f'mv "{p.abspath()}" "{new_path}"'
+                # os.system(cmd)
+                p.abspath().move(new_path)
+                print(f'───$> move {p.abspath()} to {new_path}')
 
 
     def update_dataset(self, u_range, expl_perc):
@@ -236,9 +240,10 @@ class DayDB(object):
             src_path = self.daily_cuts_dir / date_str + '.jpg'
             dst_path = self.train_dir / date_str + '.jpg'
 
-            cmd = f'mv "{src_path.abspath()}" "{dst_path.abspath()}"'
-            os.system(cmd)
-            print(f'───$> {cmd} '
+            # cmd = f'mv "{src_path.abspath()}" "{dst_path.abspath()}"'
+            # os.system(cmd)
+            src_path.abspath().move(dst_path.abspath())
+            print(f'───$> move {src_path.abspath()} to {dst_path.abspath()}'
                   f'(anomaly_score={anomaly_score:03d}) to training set')
 
         self.clean_dataset(self.train_dir, self.train_buffer_size)

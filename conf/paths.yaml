@@ -1,0 +1,4 @@
+
+INPUT_PATH: '/goat-nas/Datasets/spal/progression_demo/SPAL_folder'
+OUTPUT_PATH: '/goat-nas/Datasets/spal/progression_demo/SPAL_container'
+PROJ_LOG_PATH: '/goat-nas/Datasets/spal/progression_demo/experiments'

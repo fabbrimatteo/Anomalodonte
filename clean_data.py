@@ -16,20 +16,20 @@ from visual_utils import draw_anomaly_ui
 from update_proc.day_db import DayDB
 
 
-def clean():
+def clean(cam_id):
     n_neighbors = 20
-    trash_path = Path('/goat-nas/Datasets/spal/raw_dataset_aprile_maggio_giugno/spal_cuts/trash/cam_1')
+    trash_path = Path(f'/goat-nas/Datasets/spal/raw_dataset_aprile_maggio_giugno/spal_cuts/trash/{cam_id}')
 
-    cnf = Conf(exp_name='clean')
+    cnf = Conf(exp_name=f'clean_{cam_id}')
     cnf.ds_path = Path('/goat-nas/Datasets/spal/raw_dataset_aprile_maggio_giugno/spal_cuts')
     # cnf.ds_path = Path('/goat-nas/Datasets/spal/spal_cuts')
     cnf.epochs = 2
-    cnf.cam_id = 'cam_1'
-    # trainer = Trainer(cnf=cnf)
-    # trainer.run()
+    cnf.cam_id = cam_id
+    trainer = Trainer(cnf=cnf)
+    trainer.run()
 
     # init autoencoder
-    pth_file_path_pretrain = 'log/clean/last.pth'
+    pth_file_path_pretrain = f'log/clean_{cam_id}/last.pth'
     model = AutoencoderPlus.init_from_pth(
         pth_file_path_pretrain,
         device=cnf.device, mode='eval'
@@ -37,7 +37,7 @@ def clean():
 
     print('Initializing Loffer after Pretraining...')
     loffer = Loffer(
-        train_dir= cnf.ds_path / 'train/cam_1',
+        train_dir= cnf.ds_path / f'train/{cam_id}',
         model=model, n_neighbors=n_neighbors
     )
 
@@ -62,4 +62,6 @@ def clean():
 
 
 if __name__ == '__main__':
-    clean()
+    clean(cam_id='cam_1')
+    clean(cam_id='cam_2')
+    clean(cam_id='cam_3')
