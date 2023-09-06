@@ -8,6 +8,7 @@ import torch
 from path import Path
 import cv2
 import random
+from dataset.ds_utils import mpath2info
 
 
 DRElement = Tuple[str, int]
@@ -236,7 +237,9 @@ class DayDB(object):
         all_cuts = set([(k, self.info[k]) for k in self.info])
 
         for element in all_cuts:
-            date_str, anomaly_score = element
+            frame_name, anomaly_score = element
+            tmp_info = mpath2info(frame_name)
+            date_str = tmp_info['datestr']
             src_path = self.daily_cuts_dir / date_str + '.jpg'
             dst_path = self.train_dir / date_str + '.jpg'
 
@@ -244,12 +247,12 @@ class DayDB(object):
             # os.system(cmd)
             src_path.abspath().move(dst_path.abspath())
             print(f'───$> move {src_path.abspath()} to {dst_path.abspath()}'
-                  f'(anomaly_score={anomaly_score:03d}) to training set')
+                  f' (anomaly_score={anomaly_score:03d}) to training set')
 
         self.clean_dataset(self.train_dir, self.train_buffer_size)
 
 
-    def add(self, img_cut, anomaly_score, cut_name=None):
+    def add(self, img_cut, anomaly_score, cut_name=None, frame_name=None):
         # type: (np.ndarray, int) -> dict
 
         # obtain current date string
@@ -266,9 +269,12 @@ class DayDB(object):
         else:
             date_str = cut_name
 
-        self.info[date_str] = anomaly_score
+        # NOTE: two different file name formats: one for the dataset and one for the image name results
+        # TODO: fix it?
+        # save info for elaboration
+        self.info[frame_name] = anomaly_score
 
-        # save image cut
+        # save image cut for dataset
         out_img_path = self.root_dir / 'daily_cuts' / f'{date_str}.jpg'
         cv2.imwrite(out_img_path, img_cut)
 

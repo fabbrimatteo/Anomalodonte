@@ -1,0 +1,5 @@
+
+MASTER_FOLDER: 'C:\\Test\\master_folder'
+MASTER_FOLDER_REFERENCES: 'C:\\Test\\master_references'
+MASTER_LOG_PATH: 'C:\\Test\\master_log'
+MASTER_THRESHOLD: 0.07

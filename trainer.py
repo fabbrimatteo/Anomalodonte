@@ -79,7 +79,7 @@ class Trainer(object):
         )
 
         # possibly load checkpoint
-        self.load_ck()
+        # self.load_ck() # TODO: it is commented to avoid collision between experiments with same name (same day)
 
         if self.cnf.loss_fn == 'L1+MS_SSIM':
             self.rec_loss_fn = RecLoss(l1_w=10, ms_ssim_w=3)
@@ -209,7 +209,7 @@ class Trainer(object):
 
         loffer = Loffer(
             train_dir=train_dir, model=self.model,
-            n_neighbors=20,
+            n_neighbors=20, train_dir_master=self.cnf.master_ds_path
         )
         ad_rates, top16_errs = loffer.evaluate(test_dir=test_dir,
                                                out_dir=self.res_out_path)

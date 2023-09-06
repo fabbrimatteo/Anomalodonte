@@ -27,6 +27,7 @@ class SpalDS(Dataset):
             -> must be one of {"train", "test"}
         """
         self.cnf = cnf
+        self.master_ratio = 4
 
         assert mode in ['train', 'test'], \
             'mode must be one of {"train", "test"}'
@@ -45,9 +46,17 @@ class SpalDS(Dataset):
 
         if self.cnf.cam_id is not None:
             all_paths = (self.cnf.ds_path / mode / self.cnf.cam_id).files()
+
         else:
             all_paths = (self.cnf.ds_path / mode).files()
         all_paths.sort(key=lambda p: p.basename())
+
+        if mode == 'train':
+            # add fixed training images for master purposes
+            master_paths = self.cnf.master_ds_path.files()
+            master_paths.sort(key=lambda p: p.basename())
+            master_paths = master_paths[::self.master_ratio]
+            all_paths = all_paths + master_paths
 
         for i, img_path in enumerate(all_paths):
             if mode == 'train':
@@ -145,9 +154,12 @@ class SpalDS(Dataset):
 
 def main():
     import cv2
+    from path import Path
 
-    cnf = Conf(exp_name='progression')
+    cnf = Conf(exp_name='default')
     cnf.data_aug = True
+    cnf.ds_path = Path('C:\\Test\\experiments\\cam_3')
+    cnf.master_ds_path = cnf.master_ds_path / 'train' / f'cam_3'
     ds = SpalDS(cnf=cnf, mode='train')
     for i in range(len(ds)):
         x, y, label = ds[i]

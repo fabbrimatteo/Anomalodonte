@@ -111,6 +111,7 @@ class Conf(object):
 
         # (2) dataset/dataloader parameters
         self.ds_path = y.get('DS_PATH', None)  # type: str
+        self.master_ds_path = y.get('MASTER_DS_PATH', None)  # type: str
         self.batch_size = y.get('BATCH_SIZE', 8)  # type: int
         self.cam_id = y.get('CAM_ID', 'cam_1')  # type: str
         self.n_workers = y.get('N_WORKERS', 4)  # type: int
@@ -134,9 +135,14 @@ class Conf(object):
         # check if dataset exists
         assert self.ds_path is not None, \
             f'`you must set `DS_PATH` in configuration file`'
+        assert self.master_ds_path is not None, \
+            f'`you must set `MASTER_DS_PATH` in configuration file`'
         self.ds_path = Path(self.ds_path)
+        self.master_ds_path = Path(self.master_ds_path)
         assert self.ds_path.exists(), \
             f'`DS_PATH: "{self.ds_path.abspath()}"` does not exists'
+        assert self.master_ds_path.exists(), \
+            f'`DS_PATH: "{self.master_ds_path.abspath()}"` does not exists'
 
 
     def write_to_file(self, out_file_path):

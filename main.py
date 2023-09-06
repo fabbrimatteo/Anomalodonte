@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 # ---------------------
 
+from torch.utils.tensorboard import SummaryWriter
+
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 import click
 import torch.backends.cudnn as cudnn

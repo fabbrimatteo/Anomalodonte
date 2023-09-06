@@ -1,4 +1,9 @@
 
-INPUT_PATH: '/goat-nas/Datasets/spal/progression_demo/SPAL_folder'
-OUTPUT_PATH: '/goat-nas/Datasets/spal/progression_demo/SPAL_container'
-PROJ_LOG_PATH: '/goat-nas/Datasets/spal/progression_demo/experiments'
+#INPUT_PATH: '/goat-nas/Datasets/spal/progression_demo/SPAL_folder'
+#INPUT_PATH: 'C:\\Test\\img_src'
+INPUT_PATH: '\\10.17.5.3\Images'
+#OUTPUT_PATH: '/goat-nas/Datasets/spal/progression_demo/SPAL_container'
+#OUTPUT_PATH: 'C:\\Test\\out_dst'
+OUTPUT_PATH: 'C:\\DatiProcesso'
+#PROJ_LOG_PATH: '/goat-nas/Datasets/spal/progression_demo/experiments'
+PROJ_LOG_PATH: 'C:\\Test\\experiments'

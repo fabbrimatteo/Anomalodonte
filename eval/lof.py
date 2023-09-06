@@ -13,7 +13,7 @@ from visual_utils import draw_anomaly_ui
 
 class Loffer(object):
 
-    def __init__(self, train_dir, model, n_neighbors=12):
+    def __init__(self, train_dir, model, n_neighbors=12, train_dir_master=None):
         # type: (str, AutoencoderPlus, int) -> None
         """
         :param train_dir: root directory of the training set
@@ -22,11 +22,17 @@ class Loffer(object):
         """
 
         self.model = model
+        self.master_ratio = 4
         train_dir = Path(train_dir)
 
         # build list of sorted training images
         # >> images are in ascending alphabetical order
         self.train_paths = list(train_dir.files())
+        if train_dir_master is not None:
+            train_master_paths = list(train_dir_master.files())
+            train_master_paths.sort(key=lambda p: p.basename())
+            train_master_paths = train_master_paths[::self.master_ratio]
+            self.train_paths = self.train_paths + train_master_paths
         self.train_paths = sorted(self.train_paths)
 
         # build list of code (one code for each training image)

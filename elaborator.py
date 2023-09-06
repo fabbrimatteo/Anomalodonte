@@ -25,15 +25,18 @@ class Elaborator(object):
         self.cnf = Conf(exp_name=self.exp_name, proj_log_path=self.proj_log_path)
         self.yaml_file_path = Path('conf/default.yaml')
 
-        self.pth_file_path = self.cnf.pretrained_weights_path
         self.log_dir_path = self.proj_log_path / self.exp_name / 'log'
         self.daily_res_path = self.proj_log_path / self.exp_name / 'daily_res'
+
+        self.pth_file_path = self.proj_log_path / self.exp_name / 'best.pth'
+        if not self.pth_file_path.exists():
+            self.pth_file_path = self.cnf.pretrained_weights_path
 
         self.daily_results = {}
 
         self.n_neighbors = 20
         self.train_buffer_size = 20000
-        self.train_buffer_size = 500  # TODO: remove
+        # self.train_buffer_size = 500  # TODO: remove
 
         self.cnf.exp_log_path.makedirs_p()
 
@@ -41,24 +44,27 @@ class Elaborator(object):
         old_test_path = self.cnf.ds_path.abspath() / 'test' / f'cam_{cam_id}'
         new_train_path = self.cnf.exp_log_path.abspath() / 'train'
         new_test_path = self.cnf.exp_log_path.abspath() / 'test'
-        new_train_path.makedirs_p()
-        new_test_path.makedirs_p()
 
         # copying train and test sets
-        print('Copying train and test sets...')
-        for file in old_train_path.files():
-            new_train_file_path = new_train_path / file.basename()
-            file.copy(new_train_file_path)
-
-        for file in old_test_path.files():
-            new_test_file_path = new_test_path / file.basename()
-            file.copy(new_test_file_path)
+        if not new_train_path.exists():
+            new_train_path.makedirs_p()
+            print('Copying train set...')
+            for file in old_train_path.files(): #[:200]: # TODO: remove
+                new_train_file_path = new_train_path / file.basename()
+                file.copy(new_train_file_path)
+            print('Done!')
+        if not new_test_path.exists():
+            new_test_path.makedirs_p()
+            print('Copying test set...')
+            for file in old_test_path.files(): #[:200]: # TODO: remove
+                new_test_file_path = new_test_path / file.basename()
+                file.copy(new_test_file_path)
+            print('Done!')
 
         # cmd = f'cp "{self.cnf.ds_path.abspath()}/train/{cam_id}/*" "{new_train_path}"'
         # os.system(cmd)
         # cmd = f'cp -r "{self.cnf.ds_path.abspath()}/test/{cam_id}/*" "{new_test_path}"'
         # os.system(cmd)
-        print('Done!')
 
         self.current_date = None
         self.model = None
@@ -67,7 +73,7 @@ class Elaborator(object):
 
 
     def run(self, infos):
-        self.current_date = infos[0]['datetime'].date().strftime('%Y%m%d')
+        self.current_date = infos[0]['datetime'].date().strftime('%Y%m%d') # TODO: trovare una cosa più furba. Si rischia che due esperimenti si chiamino uguali
         self.cnf = Conf(exp_name=self.exp_name, proj_log_path=self.proj_log_path)
 
         today_res_path = self.daily_res_path / f'{self.current_date}'
@@ -79,7 +85,7 @@ class Elaborator(object):
             device=self.cnf.device, mode='eval'
         )
 
-        print('Initializing Loffer...')
+        print('Initializing Loffer...') # TODO: add master_ds anche qui?
         self.loffer = Loffer(
             train_dir=self.cnf.exp_log_path / 'train',
             model=self.model, n_neighbors=self.n_neighbors
@@ -91,17 +97,20 @@ class Elaborator(object):
 
         self.daily_results = {}
         for info in infos:
-            frame = cv2.imread(info['original_name'])
-            frame_name = Path(info['original_name']).basename()
-            cut = cut_full_img(img=frame, cam_name=f'cam_{self.cam_id}', side=256)
-            anomaly_score = int(round(self.loffer.get_anomaly_score(cut)))
-            self.daily_results = self.day_db.add(img_cut=cut, anomaly_score=anomaly_score,
-                                                 cut_name=frame_name)
+            if Path(info['original_name']).exists():
+                frame = cv2.imread(info['original_name'])
+                frame_name = Path(info['original_name']).basename()
+                cut = cut_full_img(img=frame, cam_name=f'cam_{self.cam_id}', side=256)
+                anomaly_score = int(round(self.loffer.get_anomaly_score(cut)))
+                self.daily_results = self.day_db.add(img_cut=cut, anomaly_score=anomaly_score,
+                                                     cut_name=info['datestr'], frame_name=frame_name)
 
-            img_ui = draw_anomaly_ui(cut, anomaly_score)
-            cv2.imwrite(today_res_path / frame_name, img_ui)
+                img_ui = draw_anomaly_ui(cut, anomaly_score)
+                cv2.imwrite(today_res_path / frame_name, img_ui)
 
-            print(f'───$> sample #{frame_name} of day #{self.current_date}: anomaly score {anomaly_score}')
+                print(f'───$> sample #{frame_name} of day #{self.current_date}: anomaly score {anomaly_score}')
+            else:
+                print(f'───$> sample #{frame_name} of day #{self.current_date}: NOT FOUND!')
 
 
     def end_day_routine(self):
@@ -116,8 +125,10 @@ class Elaborator(object):
                         proj_log_path=self.log_dir_path,
                         yaml_file_path=self.yaml_file_path)
         self.cnf.ds_path = self.proj_log_path / self.exp_name
+        self.cnf.master_ds_path = self.cnf.master_ds_path / 'train' / f'cam_{self.cam_id}'
         self.cnf.epochs = 2
-        self.cnf.pretrained_weights_path = self.pth_file_path
+        # self.cnf.pretrained_weights_path = self.pth_file_path # TODO: pretrained??
+        self.cnf.pretrained_weights_path = None
         trainer = Trainer(cnf=self.cnf)
         trainer.run()
 
@@ -128,7 +139,7 @@ class Elaborator(object):
             device=self.cnf.device, mode='eval'
         )
 
-        print('Initializing Loffer after Pretraining...')
+        print('Initializing Loffer after Pretraining...') # TODO: add master_ds anche qui?
         self.loffer = Loffer(
             train_dir=self.proj_log_path / self.exp_name / 'train',
             model=self.model, n_neighbors=self.n_neighbors
@@ -165,16 +176,20 @@ class Elaborator(object):
                         proj_log_path=self.log_dir_path,
                         yaml_file_path=self.yaml_file_path)
         self.cnf.ds_path = self.proj_log_path / self.exp_name
-        self.cnf.pretrained_weights_path = self.pth_file_path
-        self.cnf.epochs = 2  # TODO: remove!!
+        self.cnf.master_ds_path = self.cnf.master_ds_path / 'train' / f'cam_{self.cam_id}'
+        # self.cnf.epochs = 2  # TODO: remove!!
+        # self.cnf.pretrained_weights_path = self.pth_file_path # TODO: pretrained??
+        self.cnf.pretrained_weights_path = None
         trainer = Trainer(cnf=self.cnf)
         trainer.run()
 
         self.pth_file_path = Path(self.cnf.exp_log_path / 'best.pth')  # TODO: or last?
-
+        self.pth_file_path.copy(self.proj_log_path / self.exp_name / 'best.pth')
 
     def start(self, infos):
-        self.run(infos)
-        self.end_day_routine()
-
-        return self.daily_results
+        if len(infos) == 0:
+            return {}
+        else:
+            self.run(infos)
+            self.end_day_routine()
+            return self.daily_results

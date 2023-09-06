@@ -1,12 +1,14 @@
 # training params
 LR: 0.0001
 EPOCHS: 64
-MAX_PATIENCE: 5
+MAX_PATIENCE: 3
 
 # dataloader params
 N_WORKERS: 4
 BATCH_SIZE: 32
-DS_PATH: '/goat-nas/Datasets/spal/spal_cuts'
+# DS_PATH: '/goat-nas/Datasets/spal/spal_cuts'
+DS_PATH: 'C:\\Test\\dataset\\spal_cuts'
+MASTER_DS_PATH: 'C:\\Test\\dataset\\spal_cuts'
 CAM_ID: null
 DATA_AUG: False
 
